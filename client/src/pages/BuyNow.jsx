@@ -1,228 +1,246 @@
 import { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
-import { clearCart } from "../redux/cartSlice";
 
 function BuyNow() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const { cartItems } = useSelector((state) => state.cart);
 
-  const [paymentMethod, setPaymentMethod] = useState("card");
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
 
-  const totalItems = cartItems.reduce(
-    (sum, item) => sum + item.quantity,
-    0
+  const [paymentMethod, setPaymentMethod] = useState(
+    "Cash on Delivery"
   );
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const totalAmount = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (total, item) =>
+      total + item.price * (item.quantity || item.qty || 1),
     0
   );
 
-  const createOrder = async () => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
-    if (!token) {
-      alert("Please login first.");
-      navigate("/login");
-      return false;
-    }
-
-    const orderData = {
-      customerName: user?.name || "Customer",
-      email: user?.email || "customer@gmail.com",
-      phone: "0000000000",
-      address: "Demo Address",
-      items: cartItems.map((item) => ({
-        product: item._id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        image: item.image,
-      })),
-      totalAmount,
-    };
-
-    await API.post("/orders", orderData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return true;
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
   };
 
-  const handlePayment = async () => {
-    if (cartItems.length === 0) {
-      alert("Your cart is empty.");
-      return;
-    }
+  const placeOrder = async (event) => {
+    event.preventDefault();
 
-    if (paymentMethod === "card") {
-      navigate("/payment");
+    setError("");
+
+    if (cartItems.length === 0) {
+      setError("Your cart is empty");
       return;
     }
 
     try {
       setLoading(true);
 
-      const success = await createOrder();
+      const orderItems = cartItems.map((item) => ({
+        product: item._id,
+        name: item.name,
+        image: item.image,
+        price: item.price,
+        quantity: item.quantity || item.qty || 1,
+      }));
 
-      if (!success) return;
+      const { data } = await API.post("/orders", {
+        orderItems,
 
-      dispatch(clearCart());
+        shippingAddress: {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+        },
+
+        paymentMethod,
+        totalAmount,
+      });
 
       navigate("/payment-success", {
         state: {
-          message: "Order placed successfully. Cash on delivery selected.",
+          order: data,
         },
       });
     } catch (error) {
-      alert(error.response?.data?.message || "Order failed");
+      setError(
+        error.response?.data?.message ||
+          "Failed to place order"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-3xl font-bold mb-6">Checkout</h1>
+    <div className="min-h-screen bg-gray-100 px-4 py-10">
+      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-6 shadow-md md:p-10">
+        <h1 className="mb-2 text-3xl font-bold">
+          Checkout
+        </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              className="border rounded-lg p-3"
-            />
+        <p className="mb-8 text-gray-500">
+          Enter your delivery information
+        </p>
 
-            <input
-              type="email"
-              placeholder="Email Address"
-              className="border rounded-lg p-3"
-            />
+        {error && (
+          <p className="mb-5 rounded-lg bg-red-100 p-3 text-red-600">
+            {error}
+          </p>
+        )}
 
-            <input
-              type="text"
-              placeholder="Phone Number"
-              className="border rounded-lg p-3"
-            />
+        <form onSubmit={placeOrder}>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block font-medium">
+                Full name
+              </label>
 
-            <input
-              type="text"
-              placeholder="City"
-              className="border rounded-lg p-3"
-            />
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
 
-            <input
-              type="text"
-              placeholder="State"
-              className="border rounded-lg p-3"
-            />
+            <div>
+              <label className="mb-2 block font-medium">
+                Phone number
+              </label>
 
-            <input
-              type="text"
-              placeholder="PIN Code"
-              className="border rounded-lg p-3"
-            />
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-2 block font-medium">
+                Address
+              </label>
+
+              <textarea
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                rows="3"
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-medium">
+                City
+              </label>
+
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-medium">
+                State
+              </label>
+
+              <input
+                type="text"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-medium">
+                Pincode
+              </label>
+
+              <input
+                type="text"
+                name="pincode"
+                value={formData.pincode}
+                onChange={handleChange}
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-medium">
+                Payment method
+              </label>
+
+              <select
+                value={paymentMethod}
+                onChange={(event) =>
+                  setPaymentMethod(event.target.value)
+                }
+                className="w-full rounded-lg border px-4 py-3 outline-none focus:border-black"
+              >
+                <option value="Cash on Delivery">
+                  Cash on Delivery
+                </option>
+
+                <option value="Online Payment">
+                  Online Payment
+                </option>
+              </select>
+            </div>
           </div>
 
-          <textarea
-            placeholder="Complete Delivery Address"
-            className="w-full mt-4 border rounded-lg p-3 h-32"
-          />
-
-          <div className="mt-6">
-            <h2 className="text-xl font-semibold mb-3">
-              Payment Method
-            </h2>
-
-            <label className="flex items-center gap-2 mb-2 border rounded-lg p-3 cursor-pointer">
-              <input
-                type="radio"
-                name="payment"
-                value="card"
-                checked={paymentMethod === "card"}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              />
-              Card Payment
-            </label>
-
-            <label className="flex items-center gap-2 border rounded-lg p-3 cursor-pointer">
-              <input
-                type="radio"
-                name="payment"
-                value="cod"
-                checked={paymentMethod === "cod"}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              />
-              Cash on Delivery
-            </label>
+          <div className="mt-8 rounded-xl bg-gray-100 p-5">
+            <div className="flex justify-between text-lg font-semibold">
+              <span>Total</span>
+              <span>₹{totalAmount}</span>
+            </div>
           </div>
 
           <button
-            onClick={handlePayment}
+            type="submit"
             disabled={loading}
-            className="w-full mt-8 bg-black text-white py-4 rounded-xl text-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+            className="mt-6 w-full rounded-lg bg-black py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
               ? "Placing Order..."
-              : paymentMethod === "card"
-              ? `Continue to Pay ₹${totalAmount}`
-              : `Place Order ₹${totalAmount}`}
+              : "Place Order"}
           </button>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-xl p-8 h-fit">
-          <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
-
-          {cartItems.length === 0 ? (
-            <p className="text-gray-500">Your cart is empty.</p>
-          ) : (
-            <div className="space-y-4">
-              {cartItems.map((item) => (
-                <div
-                  key={item._id}
-                  className="flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-gray-500">
-                      Qty: {item.quantity}
-                    </p>
-                  </div>
-
-                  <p className="font-semibold">
-                    ₹{item.price * item.quantity}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <hr className="my-6" />
-
-          <div className="flex justify-between mb-3">
-            <span>Total Items</span>
-            <span>{totalItems}</span>
-          </div>
-
-          <div className="flex justify-between mb-3">
-            <span>Shipping</span>
-            <span className="text-green-600">Free</span>
-          </div>
-
-          <div className="flex justify-between text-2xl font-bold">
-            <span>Total</span>
-            <span className="text-green-600">₹{totalAmount}</span>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );
