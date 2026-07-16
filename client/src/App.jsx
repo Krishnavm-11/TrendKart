@@ -1,18 +1,18 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import ProductDetails from "./pages/ProductDetails";
-import Cart from "./pages/Cart";
-import BuyNow from "./pages/BuyNow";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import Payment from "./pages/Payment";
-import Login from "./pages/Login";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import CategoryPage from "./pages/CategoryPage";
-import SearchResults from "./pages/SearchResults";
-import OrderHistory from "./pages/OrderHistory";
+import Navbar from "./components/Navbar.jsx";
+import Home from "./pages/Home.jsx";
+import ProductDetails from "./pages/ProductDetails.jsx";
+import Cart from "./pages/Cart.jsx";
+import BuyNow from "./pages/BuyNow.jsx";
+import PaymentSuccess from "./pages/PaymentSuccess.jsx";
+import Payment from "./pages/Payment.jsx";
+import Login from "./pages/Login.jsx";
+import AdminLogin from "./pages/AdminLogin.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
+import CategoryPage from "./pages/CategoryPage.jsx";
+import SearchResults from "./pages/SearchResults.jsx";
+import OrderHistory from "./pages/OrderHistory.jsx";
 
 function AppContent() {
   const location = useLocation();
