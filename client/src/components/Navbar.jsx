@@ -36,7 +36,6 @@ function Navbar() {
 
   const navLinks = [
     { name: "Home", path: "/" },
-    { name: "Products", path: "/" },
     { name: "Men", path: "/category/men" },
     { name: "Women", path: "/category/women" },
     { name: "Kids", path: "/category/kids" },
