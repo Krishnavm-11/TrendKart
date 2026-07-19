@@ -30,42 +30,86 @@ function AdminDashboard() {
 
     const token = localStorage.getItem("adminToken");
 
-    const authConfig = {
+    const getAdminConfig = () => ({
         headers: {
             Authorization: `Bearer ${token}`,
         },
-    };
+    });
 
     const fetchProducts = async () => {
-        const { data } = await API.get("/products");
-        setProducts(data);
+        try {
+            const { data } = await API.get("/products");
+            setProducts(data);
+        } catch (error) {
+            console.error(
+                "Products fetch failed:",
+                error.response?.data || error.message
+            );
+        }
     };
 
     const fetchBanners = async () => {
-        const { data } = await API.get("/banners");
-        setBanners(data);
+        try {
+            const { data } = await API.get("/banners");
+            setBanners(data);
+        } catch (error) {
+            console.error(
+                "Banners fetch failed:",
+                error.response?.data || error.message
+            );
+        }
     };
 
     const fetchOrders = async () => {
-        const { data } = await API.get("/orders", authConfig);
-        setOrders(data);
+        try {
+            const { data } = await API.get(
+                "/orders",
+                getAdminConfig()
+            );
+
+            setOrders(data);
+        } catch (error) {
+            console.error(
+                "Orders fetch failed:",
+                error.response?.data || error.message
+            );
+
+            if (
+                error.response?.status === 401 ||
+                error.response?.status === 403
+            ) {
+                localStorage.removeItem("adminToken");
+                localStorage.removeItem("adminUser");
+                navigate("/admin/login");
+            }
+        }
     };
 
     useEffect(() => {
-        if (!token) {
-            navigate("/admin/login");
-            return;
-        }
+        const loadDashboard = async () => {
+            const savedToken =
+                localStorage.getItem("adminToken");
 
-        fetchProducts();
-        fetchBanners();
-        fetchOrders();
+            if (!savedToken) {
+                navigate("/admin/login");
+                return;
+            }
+
+            await Promise.all([
+                fetchProducts(),
+                fetchBanners(),
+                fetchOrders(),
+            ]);
+        };
+
+        loadDashboard();
     }, []);
 
     const logout = () => {
         localStorage.removeItem("adminToken");
         localStorage.removeItem("adminUser");
-        navigate("/admin/login");
+
+        navigate("/");
     };
 
     const resetProductForm = () => {

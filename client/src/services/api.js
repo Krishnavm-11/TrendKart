@@ -8,13 +8,8 @@ const API = axios.create({
 
 API.interceptors.request.use(
   (config) => {
-    const normalToken =
+    const token =
       localStorage.getItem("token");
-
-    const adminToken =
-      localStorage.getItem("adminToken");
-
-    const token = adminToken || normalToken;
 
     if (token) {
       config.headers.Authorization =
@@ -23,9 +18,7 @@ API.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default API;

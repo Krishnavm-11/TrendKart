@@ -22,8 +22,15 @@ function AdminLogin() {
         return;
       }
 
-      localStorage.setItem("adminToken", data.token);
-      localStorage.setItem("adminUser", JSON.stringify(data.user));
+      localStorage.setItem(
+        "adminToken",
+        data.token
+      );
+
+      localStorage.setItem(
+        "adminUser",
+        JSON.stringify(data.user)
+      );
 
       navigate("/admin/dashboard");
     } catch (error) {
