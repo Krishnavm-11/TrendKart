@@ -1,17 +1,31 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://trendkart-1.onrender.com/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000/api",
 });
 
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+API.interceptors.request.use(
+  (config) => {
+    const normalToken =
+      localStorage.getItem("token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    const adminToken =
+      localStorage.getItem("adminToken");
+
+    const token = adminToken || normalToken;
+
+    if (token) {
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-
-  return config;
-});
+);
 
 export default API;

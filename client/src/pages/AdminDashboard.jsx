@@ -415,7 +415,7 @@ function AdminDashboard() {
                                         className="rounded-lg border p-4"
                                     >
                                         <div className="flex flex-wrap justify-between gap-4">
-                                            <div>
+                                            <div className="space-y-1">
                                                 <h3 className="font-bold">
                                                     Order #{order._id}
                                                 </h3>
@@ -429,8 +429,8 @@ function AdminDashboard() {
 
                                                 <p>
                                                     Email:{" "}
-                                                    {order.user?.email ||
-                                                        order.email ||
+                                                    {order.email ||
+                                                        order.user?.email ||
                                                         "Email not provided"}
                                                 </p>
 
@@ -447,8 +447,14 @@ function AdminDashboard() {
                                                 </p>
 
                                                 <p>
-                                                    {order.shippingAddress?.city},{" "}
-                                                    {order.shippingAddress?.state}
+                                                    {order.shippingAddress?.city ||
+                                                        ""}
+                                                    {order.shippingAddress?.city &&
+                                                        order.shippingAddress?.state
+                                                        ? ", "
+                                                        : ""}
+                                                    {order.shippingAddress?.state ||
+                                                        ""}
                                                 </p>
 
                                                 <p>
@@ -457,16 +463,29 @@ function AdminDashboard() {
                                                         "Not provided"}
                                                 </p>
 
+                                                <p>
+                                                    Payment:{" "}
+                                                    {order.paymentMethod}
+                                                </p>
+
+                                                <p>
+                                                    Payment Status:{" "}
+                                                    {order.isPaid
+                                                        ? "Paid"
+                                                        : "Not Paid"}
+                                                </p>
+
                                                 <p>Total: ₹{order.totalAmount}</p>
+
                                                 <p>Status: {order.status}</p>
                                             </div>
 
                                             <select
                                                 value={order.status}
-                                                onChange={(event) =>
+                                                onChange={(e) =>
                                                     updateOrderStatus(
                                                         order._id,
-                                                        event.target.value
+                                                        e.target.value
                                                     )
                                                 }
                                                 className="h-fit rounded-lg border p-3"
@@ -490,25 +509,60 @@ function AdminDashboard() {
                                                 <option value="Cancelled">
                                                     Cancelled
                                                 </option>
+
+                                                <option value="Declined">
+                                                    Declined
+                                                </option>
                                             </select>
                                         </div>
 
-                                        <div className="mt-4">
-                                            <p className="font-semibold">
+                                        <div className="mt-5 border-t pt-4">
+                                            <p className="mb-3 font-semibold">
                                                 Items:
                                             </p>
 
-                                            {order.orderItems?.map(
-                                                (item, index) => (
-                                                    <p
-                                                        key={index}
-                                                        className="text-gray-600"
-                                                    >
-                                                        {item.name} ×{" "}
-                                                        {item.quantity || 1} - ₹
-                                                        {item.price}
-                                                    </p>
-                                                )
+                                            {order.orderItems?.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {order.orderItems.map(
+                                                        (item, index) => (
+                                                            <div
+                                                                key={`${order._id}-${index}`}
+                                                                className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    {item.image && (
+                                                                        <img
+                                                                            src={item.image}
+                                                                            alt={item.name}
+                                                                            className="h-14 w-14 rounded object-cover"
+                                                                        />
+                                                                    )}
+
+                                                                    <div>
+                                                                        <p className="font-medium">
+                                                                            {item.name}
+                                                                        </p>
+
+                                                                        <p className="text-sm text-gray-500">
+                                                                            Quantity:{" "}
+                                                                            {item.quantity || 1}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <p className="font-semibold">
+                                                                    ₹
+                                                                    {item.price *
+                                                                        (item.quantity || 1)}
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-500">
+                                                    No items available.
+                                                </p>
                                             )}
                                         </div>
                                     </div>

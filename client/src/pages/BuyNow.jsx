@@ -23,20 +23,22 @@ function BuyNow() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [loading, setLoading] = useState(false);
 
+  const getQuantity = (item) => {
+    return item.quantity || item.qty || 1;
+  };
+
   const totalItems = cartItems.reduce(
-    (sum, item) => sum + (item.quantity || item.qty || 1),
+    (sum, item) => sum + getQuantity(item),
     0
   );
 
   const totalAmount = cartItems.reduce(
-    (sum, item) =>
-      sum +
-      item.price * (item.quantity || item.qty || 1),
+    (sum, item) => sum + item.price * getQuantity(item),
     0
   );
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
     setFormData((previousData) => ({
       ...previousData,
@@ -44,7 +46,12 @@ function BuyNow() {
     }));
   };
 
-  const validateForm = () => {
+  const validateCheckout = () => {
+    if (cartItems.length === 0) {
+      alert("Your cart is empty.");
+      return false;
+    }
+
     if (
       !formData.fullName ||
       !formData.email ||
@@ -58,27 +65,24 @@ function BuyNow() {
       return false;
     }
 
-    if (formData.phone.length < 10) {
-      alert("Please enter a valid phone number.");
-      return false;
-    }
+    const phonePattern = /^[0-9]{10}$/;
 
-    if (cartItems.length === 0) {
-      alert("Your cart is empty.");
+    if (!phonePattern.test(formData.phone)) {
+      alert("Please enter a valid 10-digit phone number.");
       return false;
     }
 
     return true;
   };
 
-  const buildOrderData = () => {
+  const createOrderData = () => {
     return {
       orderItems: cartItems.map((item) => ({
         product: item._id,
         name: item.name,
-        quantity: item.quantity || item.qty || 1,
-        price: item.price,
         image: item.image,
+        price: item.price,
+        quantity: getQuantity(item),
       })),
 
       shippingAddress: {
@@ -91,44 +95,30 @@ function BuyNow() {
       },
 
       email: formData.email,
+      totalAmount,
+
       paymentMethod:
         paymentMethod === "card"
           ? "Card Payment"
           : "Cash on Delivery",
-
-      totalAmount,
     };
   };
 
-  const createOrder = async (orderData) => {
+  const handleCheckout = async () => {
+    if (!validateCheckout()) {
+      return;
+    }
+
     const token = localStorage.getItem("token");
 
     if (!token) {
       alert("Please login first.");
       navigate("/login");
-      return null;
+      return;
     }
 
-    const { data } = await API.post(
-      "/orders",
-      orderData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const orderData = createOrderData();
 
-    return data;
-  };
-
-  const handlePayment = async () => {
-    if (!validateForm()) return;
-
-    const orderData = buildOrderData();
-
-    // Card payment: save checkout information before moving
-    // to the Payment page.
     if (paymentMethod === "card") {
       sessionStorage.setItem(
         "pendingOrder",
@@ -142,23 +132,23 @@ function BuyNow() {
     try {
       setLoading(true);
 
-      const order = await createOrder(orderData);
-
-      if (!order) return;
+      const { data } = await API.post("/orders", orderData);
 
       dispatch(clearCart());
 
       navigate("/payment-success", {
         state: {
+          order: data,
           message:
             "Order placed successfully. Cash on delivery selected.",
-          order,
         },
       });
     } catch (error) {
+      console.error("Order creation error:", error.response?.data);
+
       alert(
         error.response?.data?.message ||
-          "Order failed"
+          "Failed to place order"
       );
     } finally {
       setLoading(false);
@@ -168,7 +158,7 @@ function BuyNow() {
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-10">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="rounded-2xl bg-white p-8 shadow-xl lg:col-span-2">
+        <div className="rounded-2xl bg-white p-6 shadow-xl md:p-8 lg:col-span-2">
           <h1 className="mb-6 text-3xl font-bold">
             Checkout
           </h1>
@@ -180,7 +170,7 @@ function BuyNow() {
               value={formData.fullName}
               onChange={handleChange}
               placeholder="Full Name"
-              className="rounded-lg border p-3"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
 
             <input
@@ -189,7 +179,7 @@ function BuyNow() {
               value={formData.email}
               onChange={handleChange}
               placeholder="Email Address"
-              className="rounded-lg border p-3"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
 
             <input
@@ -198,7 +188,8 @@ function BuyNow() {
               value={formData.phone}
               onChange={handleChange}
               placeholder="Phone Number"
-              className="rounded-lg border p-3"
+              maxLength="10"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
 
             <input
@@ -207,7 +198,7 @@ function BuyNow() {
               value={formData.city}
               onChange={handleChange}
               placeholder="City"
-              className="rounded-lg border p-3"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
 
             <input
@@ -216,7 +207,7 @@ function BuyNow() {
               value={formData.state}
               onChange={handleChange}
               placeholder="State"
-              className="rounded-lg border p-3"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
 
             <input
@@ -225,7 +216,8 @@ function BuyNow() {
               value={formData.pincode}
               onChange={handleChange}
               placeholder="PIN Code"
-              className="rounded-lg border p-3"
+              maxLength="6"
+              className="rounded-lg border p-3 outline-none focus:border-black"
             />
           </div>
 
@@ -234,7 +226,7 @@ function BuyNow() {
             value={formData.address}
             onChange={handleChange}
             placeholder="Complete Delivery Address"
-            className="mt-4 h-32 w-full rounded-lg border p-3"
+            className="mt-4 h-32 w-full rounded-lg border p-3 outline-none focus:border-black"
           />
 
           <div className="mt-6">
@@ -242,39 +234,40 @@ function BuyNow() {
               Payment Method
             </h2>
 
-            <label className="mb-2 flex cursor-pointer items-center gap-2 rounded-lg border p-3">
+            <label className="mb-3 flex cursor-pointer items-center gap-3 rounded-lg border p-4">
               <input
                 type="radio"
-                name="payment"
+                name="paymentMethod"
                 value="card"
                 checked={paymentMethod === "card"}
-                onChange={(event) =>
-                  setPaymentMethod(event.target.value)
+                onChange={(e) =>
+                  setPaymentMethod(e.target.value)
                 }
               />
 
-              Card Payment
+              <span>Card Payment</span>
             </label>
 
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3">
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-4">
               <input
                 type="radio"
-                name="payment"
+                name="paymentMethod"
                 value="cod"
                 checked={paymentMethod === "cod"}
-                onChange={(event) =>
-                  setPaymentMethod(event.target.value)
+                onChange={(e) =>
+                  setPaymentMethod(e.target.value)
                 }
               />
 
-              Cash on Delivery
+              <span>Cash on Delivery</span>
             </label>
           </div>
 
           <button
-            onClick={handlePayment}
+            type="button"
+            onClick={handleCheckout}
             disabled={loading}
-            className="mt-8 w-full rounded-xl bg-black py-4 text-lg font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
+            className="mt-8 w-full rounded-xl bg-black py-4 text-lg font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
               ? "Placing Order..."
@@ -284,7 +277,7 @@ function BuyNow() {
           </button>
         </div>
 
-        <div className="h-fit rounded-2xl bg-white p-8 shadow-xl">
+        <div className="h-fit rounded-2xl bg-white p-6 shadow-xl md:p-8">
           <h2 className="mb-6 text-2xl font-bold">
             Order Summary
           </h2>
@@ -296,13 +289,12 @@ function BuyNow() {
           ) : (
             <div className="space-y-4">
               {cartItems.map((item) => {
-                const quantity =
-                  item.quantity || item.qty || 1;
+                const quantity = getQuantity(item);
 
                 return (
                   <div
                     key={item._id}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between gap-4"
                   >
                     <div>
                       <p className="font-medium">
@@ -332,6 +324,7 @@ function BuyNow() {
 
           <div className="mb-3 flex justify-between">
             <span>Shipping</span>
+
             <span className="text-green-600">
               Free
             </span>
@@ -339,6 +332,7 @@ function BuyNow() {
 
           <div className="flex justify-between text-2xl font-bold">
             <span>Total</span>
+
             <span className="text-green-600">
               ₹{totalAmount}
             </span>

@@ -8,8 +8,9 @@ import connectDB from "./config/db.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
-import bannerRoutes from "./routes/bannerRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import bannerRoutes from "./routes/bannerRoutes.js";
+
 
 connectDB();
 

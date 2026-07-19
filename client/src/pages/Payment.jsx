@@ -9,32 +9,55 @@ function Payment() {
   const navigate = useNavigate();
 
   const [cardNumber, setCardNumber] = useState("");
-  const [cardHolder, setCardHolder] = useState("");
+  const [cardHolderName, setCardHolderName] =
+    useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const pendingOrder = JSON.parse(
-    sessionStorage.getItem("pendingOrder")
-  );
+  let pendingOrder = null;
+
+  try {
+    const savedOrder =
+      sessionStorage.getItem("pendingOrder");
+
+    pendingOrder = savedOrder
+      ? JSON.parse(savedOrder)
+      : null;
+  } catch (error) {
+    console.error("Invalid pending order:", error);
+  }
 
   const totalAmount =
     pendingOrder?.totalAmount || 0;
 
-  const handlePayment = async (event) => {
-    event.preventDefault();
+  const handlePayment = async (e) => {
+    e.preventDefault();
 
     if (!pendingOrder) {
       alert(
-        "Checkout information is missing. Please return to the cart."
+        "Checkout details are missing. Please return to checkout."
       );
+
+      navigate("/cart");
+      return;
+    }
+
+    if (
+      !pendingOrder.orderItems ||
+      pendingOrder.orderItems.length === 0
+    ) {
+      alert(
+        "No products found. Please return to your cart."
+      );
+
       navigate("/cart");
       return;
     }
 
     if (
       !cardNumber ||
-      !cardHolder ||
+      !cardHolderName ||
       !expiry ||
       !cvv
     ) {
@@ -42,44 +65,51 @@ function Payment() {
       return;
     }
 
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      alert("Please login first.");
+      navigate("/login");
+      return;
+    }
+
+    const orderData = {
+      orderItems: pendingOrder.orderItems,
+      shippingAddress:
+        pendingOrder.shippingAddress,
+      email: pendingOrder.email,
+      totalAmount: pendingOrder.totalAmount,
+      paymentMethod: "Card Payment",
+      isPaid: true,
+    };
+
+    console.log("Order being sent:", orderData);
+
     try {
       setLoading(true);
 
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        alert("Please login first.");
-        navigate("/login");
-        return;
-      }
-
-      const orderData = {
-        ...pendingOrder,
-        paymentMethod: "Card Payment",
-        isPaid: true,
-      };
-
       const { data } = await API.post(
         "/orders",
-        orderData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        orderData
       );
 
       sessionStorage.removeItem("pendingOrder");
+
       dispatch(clearCart());
 
       navigate("/payment-success", {
         state: {
+          order: data,
           message:
             "Payment completed and order placed successfully.",
-          order: data,
         },
       });
     } catch (error) {
+      console.error(
+        "Payment order error:",
+        error.response?.data
+      );
+
       alert(
         error.response?.data?.message ||
           "Payment failed"
@@ -93,7 +123,7 @@ function Payment() {
     <div className="min-h-screen bg-gray-100 px-4 py-10">
       <form
         onSubmit={handlePayment}
-        className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-xl"
+        className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-xl md:p-8"
       >
         <h1 className="text-center text-3xl font-bold">
           Card Payment
@@ -108,12 +138,14 @@ function Payment() {
         </label>
 
         <input
+          type="text"
           value={cardNumber}
-          onChange={(event) =>
-            setCardNumber(event.target.value)
+          onChange={(e) =>
+            setCardNumber(e.target.value)
           }
           placeholder="Enter card number"
-          className="mb-5 w-full rounded-lg border p-4"
+          maxLength="16"
+          className="mb-5 w-full rounded-lg border p-4 outline-none focus:border-black"
         />
 
         <label className="mb-2 block font-semibold">
@@ -121,27 +153,30 @@ function Payment() {
         </label>
 
         <input
-          value={cardHolder}
-          onChange={(event) =>
-            setCardHolder(event.target.value)
+          type="text"
+          value={cardHolderName}
+          onChange={(e) =>
+            setCardHolderName(e.target.value)
           }
           placeholder="Enter card holder name"
-          className="mb-5 w-full rounded-lg border p-4"
+          className="mb-5 w-full rounded-lg border p-4 outline-none focus:border-black"
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block font-semibold">
               Expiry Date
             </label>
 
             <input
+              type="text"
               value={expiry}
-              onChange={(event) =>
-                setExpiry(event.target.value)
+              onChange={(e) =>
+                setExpiry(e.target.value)
               }
               placeholder="MM/YY"
-              className="w-full rounded-lg border p-4"
+              maxLength="5"
+              className="w-full rounded-lg border p-4 outline-none focus:border-black"
             />
           </div>
 
@@ -151,12 +186,14 @@ function Payment() {
             </label>
 
             <input
+              type="password"
               value={cvv}
-              onChange={(event) =>
-                setCvv(event.target.value)
+              onChange={(e) =>
+                setCvv(e.target.value)
               }
               placeholder="CVV"
-              className="w-full rounded-lg border p-4"
+              maxLength="3"
+              className="w-full rounded-lg border p-4 outline-none focus:border-black"
             />
           </div>
         </div>
@@ -169,7 +206,7 @@ function Payment() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full rounded-lg bg-black py-4 font-semibold text-white disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-black py-4 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading
             ? "Processing..."
