@@ -193,8 +193,8 @@ function AdminDashboard() {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-5 py-2 rounded-lg capitalize ${activeTab === tab
-                                    ? "bg-black text-white"
-                                    : "bg-white text-black"
+                                ? "bg-black text-white"
+                                : "bg-white text-black"
                                 }`}
                         >
                             {tab}
@@ -398,47 +398,123 @@ function AdminDashboard() {
                 )}
 
                 {activeTab === "orders" && (
-                    <div className="bg-white p-6 rounded-xl shadow">
-                        <h2 className="text-2xl font-bold mb-4">Order Details</h2>
+                    <div className="rounded-xl bg-white p-6 shadow">
+                        <h2 className="mb-4 text-2xl font-bold">
+                            Order Details
+                        </h2>
 
-                        <div className="space-y-4">
-                            {orders.map((order) => (
-                                <div key={order._id} className="border rounded-lg p-4">
-                                    <div className="flex justify-between gap-4 flex-wrap">
-                                        <div>
-                                            <h3 className="font-bold">Order #{order._id}</h3>
-                                            <p>Customer: {order.customerName}</p>
-                                            <p>Email: {order.email}</p>
-                                            <p>Phone: {order.phone}</p>
-                                            <p>Total: ₹{order.totalAmount}</p>
-                                            <p>Status: {order.status}</p>
+                        {orders.length === 0 ? (
+                            <p className="text-gray-500">
+                                No orders found.
+                            </p>
+                        ) : (
+                            <div className="space-y-4">
+                                {orders.map((order) => (
+                                    <div
+                                        key={order._id}
+                                        className="rounded-lg border p-4"
+                                    >
+                                        <div className="flex flex-wrap justify-between gap-4">
+                                            <div>
+                                                <h3 className="font-bold">
+                                                    Order #{order._id}
+                                                </h3>
+
+                                                <p>
+                                                    Customer:{" "}
+                                                    {order.shippingAddress?.fullName ||
+                                                        order.user?.name ||
+                                                        "Customer"}
+                                                </p>
+
+                                                <p>
+                                                    Email:{" "}
+                                                    {order.user?.email ||
+                                                        order.email ||
+                                                        "Email not provided"}
+                                                </p>
+
+                                                <p>
+                                                    Phone:{" "}
+                                                    {order.shippingAddress?.phone ||
+                                                        "Phone not provided"}
+                                                </p>
+
+                                                <p>
+                                                    Address:{" "}
+                                                    {order.shippingAddress?.address ||
+                                                        "Address not provided"}
+                                                </p>
+
+                                                <p>
+                                                    {order.shippingAddress?.city},{" "}
+                                                    {order.shippingAddress?.state}
+                                                </p>
+
+                                                <p>
+                                                    PIN:{" "}
+                                                    {order.shippingAddress?.pincode ||
+                                                        "Not provided"}
+                                                </p>
+
+                                                <p>Total: ₹{order.totalAmount}</p>
+                                                <p>Status: {order.status}</p>
+                                            </div>
+
+                                            <select
+                                                value={order.status}
+                                                onChange={(event) =>
+                                                    updateOrderStatus(
+                                                        order._id,
+                                                        event.target.value
+                                                    )
+                                                }
+                                                className="h-fit rounded-lg border p-3"
+                                            >
+                                                <option value="Pending">
+                                                    Pending
+                                                </option>
+
+                                                <option value="Confirmed">
+                                                    Confirmed
+                                                </option>
+
+                                                <option value="Shipped">
+                                                    Shipped
+                                                </option>
+
+                                                <option value="Delivered">
+                                                    Delivered
+                                                </option>
+
+                                                <option value="Cancelled">
+                                                    Cancelled
+                                                </option>
+                                            </select>
                                         </div>
 
-                                        <select
-                                            value={order.status}
-                                            onChange={(e) =>
-                                                updateOrderStatus(order._id, e.target.value)
-                                            }
-                                            className="border p-3 rounded-lg h-fit"
-                                        >
-                                            <option>Pending</option>
-                                            <option>Confirmed</option>
-                                            <option>Declined</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="mt-4">
-                                        <p className="font-semibold">Items:</p>
-
-                                        {order.items.map((item, index) => (
-                                            <p key={index} className="text-gray-600">
-                                                {item.name} × {item.quantity} - ₹{item.price}
+                                        <div className="mt-4">
+                                            <p className="font-semibold">
+                                                Items:
                                             </p>
-                                        ))}
+
+                                            {order.orderItems?.map(
+                                                (item, index) => (
+                                                    <p
+                                                        key={index}
+                                                        className="text-gray-600"
+                                                    >
+                                                        {item.name} ×{" "}
+                                                        {item.quantity || 1} - ₹
+                                                        {item.price}
+                                                    </p>
+                                                )
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -1,152 +1,181 @@
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import API from "../services/api";
 import { clearCart } from "../redux/cartSlice";
 
 function Payment() {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { cartItems } = useSelector((state) => state.cart);
+  const navigate = useNavigate();
 
   const [cardNumber, setCardNumber] = useState("");
-  const [name, setName] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const total = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
+  const pendingOrder = JSON.parse(
+    sessionStorage.getItem("pendingOrder")
   );
 
-  const createOrder = async () => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
+  const totalAmount =
+    pendingOrder?.totalAmount || 0;
 
-    if (!token) {
-      alert("Please login first.");
-      navigate("/login");
-      return false;
+  const handlePayment = async (event) => {
+    event.preventDefault();
+
+    if (!pendingOrder) {
+      alert(
+        "Checkout information is missing. Please return to the cart."
+      );
+      navigate("/cart");
+      return;
     }
 
-    const orderData = {
-      customerName: user?.name || "Customer",
-      email: user?.email || "customer@gmail.com",
-      phone: "0000000000",
-      address: "Demo Address",
-      items: cartItems.map((item) => ({
-        product: item._id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        image: item.image,
-      })),
-      totalAmount: total,
-    };
-
-    await API.post("/orders", orderData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return true;
-  };
-
-  const handlePay = async () => {
-    if (!cardNumber || !name || !expiry || !cvv) {
-      alert("Please fill all payment details.");
+    if (
+      !cardNumber ||
+      !cardHolder ||
+      !expiry ||
+      !cvv
+    ) {
+      alert("Please fill all card details.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const success = await createOrder();
+      const token = localStorage.getItem("token");
 
-      if (!success) return;
+      if (!token) {
+        alert("Please login first.");
+        navigate("/login");
+        return;
+      }
 
+      const orderData = {
+        ...pendingOrder,
+        paymentMethod: "Card Payment",
+        isPaid: true,
+      };
+
+      const { data } = await API.post(
+        "/orders",
+        orderData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      sessionStorage.removeItem("pendingOrder");
       dispatch(clearCart());
 
       navigate("/payment-success", {
         state: {
-          message: "Payment successful. Your order has been placed.",
+          message:
+            "Payment completed and order placed successfully.",
+          order: data,
         },
       });
     } catch (error) {
-      alert(error.response?.data?.message || "Payment failed");
+      alert(
+        error.response?.data?.message ||
+          "Payment failed"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold mb-2 text-center">
+    <div className="min-h-screen bg-gray-100 px-4 py-10">
+      <form
+        onSubmit={handlePayment}
+        className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-xl"
+      >
+        <h1 className="text-center text-3xl font-bold">
           Card Payment
         </h1>
 
-        <p className="text-center text-gray-500 mb-8">
+        <p className="mb-8 mt-2 text-center text-gray-500">
           Complete your payment securely
         </p>
 
-        <div className="mb-5">
-          <label className="block font-medium mb-2">Card Number</label>
-          <input
-            className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-            placeholder="1234 5678 9012 3456"
-            value={cardNumber}
-            onChange={(e) => setCardNumber(e.target.value)}
-          />
-        </div>
+        <label className="mb-2 block font-semibold">
+          Card Number
+        </label>
 
-        <div className="mb-5">
-          <label className="block font-medium mb-2">Card Holder Name</label>
-          <input
-            className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-            placeholder="Name on card"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
+        <input
+          value={cardNumber}
+          onChange={(event) =>
+            setCardNumber(event.target.value)
+          }
+          placeholder="Enter card number"
+          className="mb-5 w-full rounded-lg border p-4"
+        />
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <label className="mb-2 block font-semibold">
+          Card Holder Name
+        </label>
+
+        <input
+          value={cardHolder}
+          onChange={(event) =>
+            setCardHolder(event.target.value)
+          }
+          placeholder="Enter card holder name"
+          className="mb-5 w-full rounded-lg border p-4"
+        />
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block font-medium mb-2">Expiry Date</label>
+            <label className="mb-2 block font-semibold">
+              Expiry Date
+            </label>
+
             <input
-              className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-              placeholder="MM/YY"
               value={expiry}
-              onChange={(e) => setExpiry(e.target.value)}
+              onChange={(event) =>
+                setExpiry(event.target.value)
+              }
+              placeholder="MM/YY"
+              className="w-full rounded-lg border p-4"
             />
           </div>
 
           <div>
-            <label className="block font-medium mb-2">CVV</label>
+            <label className="mb-2 block font-semibold">
+              CVV
+            </label>
+
             <input
-              className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-              placeholder="123"
               value={cvv}
-              onChange={(e) => setCvv(e.target.value)}
+              onChange={(event) =>
+                setCvv(event.target.value)
+              }
+              placeholder="CVV"
+              className="w-full rounded-lg border p-4"
             />
           </div>
         </div>
 
-        <div className="bg-gray-100 rounded-lg p-4 flex justify-between font-semibold mb-6">
+        <div className="mt-6 flex justify-between rounded-lg bg-gray-100 p-5 font-bold">
           <span>Total Amount</span>
-          <span>₹{total}</span>
+          <span>₹{totalAmount}</span>
         </div>
 
         <button
-          onClick={handlePay}
+          type="submit"
           disabled={loading}
-          className="w-full bg-black text-white py-4 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-black py-4 font-semibold text-white disabled:opacity-50"
         >
-          {loading ? "Processing..." : `Pay ₹${total}`}
+          {loading
+            ? "Processing..."
+            : `Pay ₹${totalAmount}`}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
