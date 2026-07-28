@@ -8,6 +8,7 @@ import BuyNow from "./pages/BuyNow.jsx";
 import PaymentSuccess from "./pages/PaymentSuccess.jsx";
 import Payment from "./pages/Payment.jsx";
 import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
 import AdminLogin from "./pages/AdminLogin.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import CategoryPage from "./pages/CategoryPage.jsx";
@@ -30,6 +31,7 @@ function AppContent() {
         <Route path="/payment" element={<Payment />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/category/:categoryName" element={<CategoryPage />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/orders" element={<OrderHistory />} />
