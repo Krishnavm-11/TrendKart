@@ -149,9 +149,10 @@ function AdminDashboard() {
 
             resetProductForm();
             fetchProducts();
-        } catch (error) {
-            alert(error.response?.data?.message || "Product save failed");
-        }
+        }  catch (error) {
+  console.log("Product save error:", error.response?.data || error);
+  alert(error.response?.data?.message || "Product save failed");
+}
     };
 
     const editProduct = (product) => {
