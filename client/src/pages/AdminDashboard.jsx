@@ -149,9 +149,16 @@ function AdminDashboard() {
 
             resetProductForm();
             fetchProducts();
-        }  catch (error) {
-  console.log("Product save error:", error.response?.data || error);
-  alert(error.response?.data?.message || "Product save failed");
+        } catch (error) {
+  console.log("FULL ERROR:", error);
+  console.log("SERVER RESPONSE:", error.response?.data);
+  console.log("STATUS:", error.response?.status);
+
+  alert(
+    error.response?.data?.message ||
+    error.message ||
+    "Product save failed"
+  );
 }
     };
 
