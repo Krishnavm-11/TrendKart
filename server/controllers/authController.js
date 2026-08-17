@@ -49,15 +49,18 @@ export const loginUser = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid user",
+        message: "Invalid User",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isMatch) {
       return res.status(400).json({
-        message: "Invalid password",
+        message: "Invalid Password",
       });
     }
 
@@ -74,7 +77,7 @@ export const loginUser = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
