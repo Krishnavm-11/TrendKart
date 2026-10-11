@@ -1,34 +1,43 @@
 import express from "express";
-
 import {
-  createOrder,
+  createCODOrder,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   getMyOrders,
   getAllOrders,
   updateOrderStatus,
   deleteOrder,
+  cancelMyOrder,
 } from "../controllers/orderController.js";
-
-import {
-  protect,
-  admin,
-} from "../middleware/authMiddleware.js";
+import { getAnalytics } from "../controllers/analyticsController.js";
+import { protect, admin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", protect, createOrder);
+// Customer: create Cash on Delivery order
+router.post("/", protect, createCODOrder);
 
-router.get(
-  "/my-orders",
+// Customer: cancel their own order
+router.put("/:id/cancel", protect, cancelMyOrder);
+
+// Customer: Razorpay routes
+router.post(
+  "/razorpay/create-order",
   protect,
-  getMyOrders
+  createRazorpayOrder
 );
 
-router.get(
-  "/",
+router.post(
+  "/razorpay/verify-payment",
   protect,
-  admin,
-  getAllOrders
+  verifyRazorpayPayment
 );
+
+// Customer: order history
+router.get("/myorders", protect, getMyOrders);
+
+// Admin: order management
+router.get("/", protect, admin, getAllOrders);
 
 router.put(
   "/:id/status",
@@ -43,5 +52,8 @@ router.delete(
   admin,
   deleteOrder
 );
+
+// Admin: analytics
+router.get("/analytics", protect, admin, getAnalytics);
 
 export default router;

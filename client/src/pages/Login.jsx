@@ -1,5 +1,8 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
+import toast from "react-hot-toast";
 import API from "../services/api";
 
 function Login() {
@@ -7,47 +10,107 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState("credentials");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
+  // Step 1: Check login details and request OTP.
+  const handleSendOtp = async (event) => {
+    event.preventDefault();
 
-    if (!email || !password) {
-      setError("Please enter your email and password.");
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      toast.error("Please enter your password.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const { data } = await API.post("/auth/login", {
-        email,
-        password,
-      });
+      const { data } = await API.post(
+        "/auth/login/send-otp",
+        {
+          email: normalizedEmail,
+          password,
+        }
+      );
 
-      if (data.user?.role === "admin") {
-        setError("Please use the Admin Login link below.");
-        return;
-      }
+      setEmail(normalizedEmail);
+      setStep("otp");
+
+      toast.success(data.message);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          "Unable to send OTP. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP and log in.
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault();
+
+    if (!/^\d{6}$/.test(otp)) {
+      toast.error("Enter the 6-digit OTP.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { data } = await API.post(
+        "/auth/verify-otp",
+        {
+          email,
+          otp,
+          purpose: "login",
+        }
+      );
 
       localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-      if (data.user) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify(data.user)
-        );
-      }
+      toast.success("Welcome back!");
 
       navigate("/");
     } catch (error) {
-      setError(
+      toast.error(
         error.response?.data?.message ||
-          "Login failed. Please check your details."
+          "OTP verification failed."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Request another OTP.
+  const resendOtp = async () => {
+    try {
+      setLoading(true);
+
+      const { data } = await API.post(
+        "/auth/login/send-otp",
+        {
+          email,
+          password,
+        }
+      );
+
+      setOtp("");
+      toast.success(data.message);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          "Could not resend OTP."
       );
     } finally {
       setLoading(false);
@@ -55,126 +118,199 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-12">
-      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl md:grid-cols-2">
-        {/* Left side */}
-        <div className="hidden bg-black p-10 text-white md:flex md:flex-col md:justify-between">
-          <div>
-            <Link to="/" className="text-3xl font-bold">
-              TrendKart
-            </Link>
+    <div className="min-h-screen bg-[#f4f1eb] px-4 py-10 text-[#211f1b]">
+      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-[#e6dfd4] bg-white shadow-xl md:min-h-[620px] md:grid-cols-2">
 
-            <h2 className="mt-16 text-4xl font-bold leading-tight">
-              Welcome back to TrendKart.
+        {/* Left side */}
+        <div className="hidden bg-[#171613] p-10 text-[#f8f4ed] md:flex md:flex-col md:justify-between">
+          <Link to="/" className="text-3xl font-semibold">
+            TrendKart<span className="text-[#c9ad83]">.</span>
+          </Link>
+
+          <div>
+            <p className="mb-4 text-xs uppercase tracking-[0.35em] text-[#c9ad83]">
+              Considered essentials
+            </p>
+
+            <h2 className="max-w-sm text-4xl font-light leading-tight">
+              Good taste begins with the details.
             </h2>
 
-            <p className="mt-4 max-w-sm text-gray-300">
-              Sign in to continue shopping, manage your cart,
-              and view your orders.
+            <p className="mt-5 max-w-sm leading-7 text-white/60">
+              Sign in securely and continue shopping.
             </p>
           </div>
 
-          <p className="text-sm text-gray-400">
-            Simple shopping. Secure checkout.
+          <p className="text-xs text-white/40">
+            A more considered way to shop.
           </p>
         </div>
 
         {/* Right side */}
-        <div className="p-6 sm:p-10">
-          <div className="mb-8">
-            <Link
-              to="/"
-              className="text-2xl font-bold md:hidden"
-            >
-              TrendKart
+        <div className="flex items-center p-6 sm:p-12">
+          <div className="mx-auto w-full max-w-md">
+
+            <Link to="/" className="text-2xl font-semibold md:hidden">
+              TrendKart<span className="text-[#b99a6b]">.</span>
             </Link>
 
-            <h1 className="mt-5 text-3xl font-bold md:mt-0">
-              User Login
-            </h1>
+            {step === "credentials" ? (
+              <>
+                <p className="mt-8 text-xs uppercase tracking-[0.25em] text-[#9b815e] md:mt-0">
+                  Welcome back
+                </p>
 
-            <p className="mt-2 text-gray-500">
-              Enter your account details to continue.
-            </p>
-          </div>
+                <h1 className="mt-3 text-3xl font-semibold">
+                  Sign in to your account
+                </h1>
 
-          {error && (
-            <div className="mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-600">
-              {error}
-            </div>
-          )}
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Enter your details. We'll email you a verification code.
+                </p>
 
-          <form onSubmit={handleLogin}>
-            <div className="mb-5">
-              <label className="mb-2 block font-medium">
-                Email address
-              </label>
+                <form onSubmit={handleSendOtp} className="mt-8 space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Email address
+                    </label>
 
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
-                required
-              />
-            </div>
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      className="w-full rounded-xl border border-[#ded8ce] px-4 py-3.5 outline-none focus:border-[#9b815e]"
+                      required
+                    />
+                  </div>
 
-            <div className="mb-6">
-              <label className="mb-2 block font-medium">
-                Password
-              </label>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Password
+                    </label>
 
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-20 outline-none transition focus:border-black"
-                  required
-                />
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full rounded-xl border border-[#ded8ce] px-4 py-3.5 outline-none focus:border-[#9b815e]"
+                      required
+                    />
+                  </div>
 
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {loading ? "Sending OTP..." : "Continue securely"}
+                  </button>
+                </form>
+
+                <p className="mt-7 text-center text-sm text-gray-600">
+                  New to TrendKart?{" "}
+                  <Link
+                    to="/register"
+                    className="font-semibold text-[#806344] hover:underline"
+                  >
+                    Create an account
+                  </Link>
+                </p>
+
+                <div className="mt-8 border-t border-[#eee9e1] pt-5 text-center">
+                  <Link
+                    to="/admin/login"
+                    className="text-xs text-gray-500 hover:text-black"
+                  >
+                    Admin Login
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowPassword((value) => !value)
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500 hover:text-black"
+                  onClick={() => {
+                    setStep("credentials");
+                    setOtp("");
+                  }}
+                  className="mb-8 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black"
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  <ArrowLeft size={16} />
+                  Back to login
                 </button>
-              </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-black py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Logging in..." : "Login"}
-            </button>
-          </form>
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4eee5] text-[#8a6b45]">
+                  <ShieldCheck size={24} />
+                </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Don&apos;t have an account?{" "}
-              <Link
-                to="/register"
-                className="font-semibold text-black underline underline-offset-4"
-              >
-                Register
-              </Link>
-            </p>
-          </div>
+                <h1 className="text-3xl font-semibold">
+                  Check your email
+                </h1>
 
-          <div className="mt-8 border-t pt-6 text-center">
-            <Link
-              to="/admin/login"
-              className="text-sm font-semibold text-gray-500 hover:text-black hover:underline"
-            >
-              Admin Login
-            </Link>
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-medium text-[#28251f]">
+                    {email}
+                  </span>.
+                </p>
+
+                <form onSubmit={handleVerifyOtp} className="mt-8 space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Verification code
+                    </label>
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(event) =>
+                        setOtp(
+                          event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 6)
+                        )
+                      }
+                      placeholder="000000"
+                      className="w-full rounded-xl border border-[#ded8ce] px-4 py-4 text-center text-2xl tracking-[0.45em] outline-none focus:border-[#9b815e]"
+                      required
+                    />
+
+                    <p className="mt-2 text-xs text-gray-400">
+                      The code expires after 10 minutes.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {loading ? "Verifying..." : "Verify and sign in"}
+                  </button>
+                </form>
+
+                <p className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
+                  <Mail size={14} />
+                  Didn't receive it?
+                  <button
+                    type="button"
+                    onClick={resendOtp}
+                    disabled={loading}
+                    className="font-semibold text-[#806344] hover:underline"
+                  >
+                    Resend code
+                  </button>
+                </p>
+              </>
+            )}
+
           </div>
         </div>
       </div>

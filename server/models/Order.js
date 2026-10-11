@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema(
@@ -7,79 +8,66 @@ const orderItemSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
-
     name: {
       type: String,
       required: true,
     },
-
     image: {
       type: String,
       default: "",
     },
-
     price: {
       type: Number,
       required: true,
     },
-
     quantity: {
       type: Number,
       required: true,
       default: 1,
     },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
-const shippingAddressSchema =
-  new mongoose.Schema(
-    {
-      fullName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
-      phone: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
-      address: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
-      city: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
-      state: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
-      pincode: {
-        type: String,
-        required: true,
-        trim: true,
-      },
+const shippingAddressSchema = new mongoose.Schema(
+  {
+    fullName: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    {
-      _id: false,
-    }
-  );
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    address: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    city: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    state: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    pincode: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
 
 const orderSchema = new mongoose.Schema(
   {
+    // The authenticated account that placed the order
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -101,6 +89,18 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
 
+    subtotal: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    shipping: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
     totalAmount: {
       type: Number,
       required: true,
@@ -108,10 +108,7 @@ const orderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: [
-        "Card Payment",
-        "Cash on Delivery",
-      ],
+      enum: ["Card Payment", "Cash on Delivery"],
       default: "Cash on Delivery",
     },
 
@@ -129,11 +126,10 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Pending",
-        "Confirmed",
+        "Processing",
         "Shipped",
         "Delivered",
         "Cancelled",
-        "Declined",
       ],
       default: "Pending",
     },
@@ -142,13 +138,20 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    razorpayOrderId: {
+      type: String,
+      default: "",
+    },
+
+    razorpayPaymentId: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
   }
 );
 
-export default mongoose.model(
-  "Order",
-  orderSchema
-);
+export default mongoose.model("Order", orderSchema);

@@ -1,218 +1,484 @@
+
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  CreditCard,
+  ShieldCheck,
+  ShoppingBag,
+  Banknote,
+} from "lucide-react";
+
 import API from "../services/api";
 import { clearCart } from "../redux/cartSlice";
 
-function Payment() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
 
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardHolderName, setCardHolderName] =
-    useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(true));
+      existingScript.addEventListener("error", () => resolve(false));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+
+    document.body.appendChild(script);
+  });
+}
+
+function Payment() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [loading, setLoading] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState("cod");
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error");
 
   let pendingOrder = null;
 
   try {
-    const savedOrder =
-      sessionStorage.getItem("pendingOrder");
-
-    pendingOrder = savedOrder
-      ? JSON.parse(savedOrder)
-      : null;
-  } catch (error) {
-    console.error("Invalid pending order:", error);
+    pendingOrder = JSON.parse(
+      sessionStorage.getItem("pendingOrder") || "null"
+    );
+  } catch {
+    pendingOrder = null;
   }
 
-  const totalAmount =
-    pendingOrder?.totalAmount || 0;
+  const orderItems = pendingOrder?.orderItems || [];
+  const shippingAddress = pendingOrder?.shippingAddress;
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
+  const displayTotal = Number(pendingOrder?.totalAmount || 0);
 
-    if (!pendingOrder) {
-      alert(
-        "Checkout details are missing. Please return to checkout."
+  const formatPrice = (amount) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(Number(amount || 0));
+
+  const showMessage = (text, type = "error") => {
+    setMessage(text);
+    setMessageType(type);
+  };
+
+  const validateOrder = () => {
+    if (!pendingOrder || orderItems.length === 0) {
+      showMessage(
+        "Your pending order was not found. Please return to checkout."
       );
-
-      navigate("/cart");
-      return;
+      return false;
     }
 
-    if (
-      !pendingOrder.orderItems ||
-      pendingOrder.orderItems.length === 0
-    ) {
-      alert(
-        "No products found. Please return to your cart."
+    if (!shippingAddress) {
+      showMessage(
+        "Your shipping address is missing. Please return to checkout."
       );
-
-      navigate("/cart");
-      return;
+      return false;
     }
 
-    if (
-      !cardNumber ||
-      !cardHolderName ||
-      !expiry ||
-      !cvv
-    ) {
-      alert("Please fill all card details.");
-      return;
+    if (!localStorage.getItem("token")) {
+      showMessage("Please sign in before placing your order.");
+      return false;
     }
 
-    const token = localStorage.getItem("token");
+    return true;
+  };
 
-    if (!token) {
-      alert("Please login first.");
-      navigate("/login");
-      return;
-    }
-
-    const orderData = {
-      orderItems: pendingOrder.orderItems,
-      shippingAddress:
-        pendingOrder.shippingAddress,
-      email: pendingOrder.email,
-      totalAmount: pendingOrder.totalAmount,
-      paymentMethod: "Card Payment",
-      isPaid: true,
-    };
-
-    console.log("Order being sent:", orderData);
+  // Place Cash on Delivery order
+  const handleCOD = async () => {
+    if (loading || !validateOrder()) return;
 
     try {
       setLoading(true);
+      setMessage("");
 
-      const { data } = await API.post(
-        "/orders",
-        orderData
-      );
+      const { data } = await API.post("/orders", {
+        orderItems,
+        shippingAddress,
+      });
 
       sessionStorage.removeItem("pendingOrder");
-
       dispatch(clearCart());
 
       navigate("/payment-success", {
+        replace: true,
         state: {
-          order: data,
+          order: data.order,
           message:
-            "Payment completed and order placed successfully.",
+            data.message ||
+            "Cash on Delivery order placed successfully!",
         },
       });
     } catch (error) {
-      console.error(
-        "Payment order error:",
-        error.response?.data
-      );
+      console.error("COD order creation failed:", error);
 
-      alert(
+      showMessage(
         error.response?.data?.message ||
-          "Payment failed"
+          "Unable to place order. Please try again."
       );
     } finally {
       setLoading(false);
     }
   };
 
+  // Start Razorpay payment
+  const handleRazorpay = async () => {
+    if (loading || !validateOrder()) return;
+
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const scriptLoaded = await loadRazorpayScript();
+
+      if (!scriptLoaded || !window.Razorpay) {
+        throw new Error(
+          "Unable to load Razorpay Checkout. Check your internet connection."
+        );
+      }
+
+      const { data: paymentData } = await API.post(
+        "/orders/razorpay/create-order",
+        {
+          orderItems,
+          shippingAddress,
+        }
+      );
+
+      const options = {
+        key: paymentData.keyId,
+        amount: paymentData.razorpayOrder.amount,
+        currency: paymentData.razorpayOrder.currency,
+        name: "TrendKart",
+        description: "Secure shopping payment",
+        order_id: paymentData.razorpayOrder.id,
+        theme: {
+          color: "#211f1b",
+        },
+        modal: {
+          escape: true,
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
+
+        handler: async (response) => {
+          try {
+            const { data: result } = await API.post(
+              "/orders/razorpay/verify-payment",
+              {
+                razorpay_order_id:
+                  response.razorpay_order_id,
+                razorpay_payment_id:
+                  response.razorpay_payment_id,
+                razorpay_signature:
+                  response.razorpay_signature,
+                orderData: {
+                  orderItems,
+                  shippingAddress,
+                },
+              }
+            );
+
+            sessionStorage.removeItem("pendingOrder");
+            dispatch(clearCart());
+
+            navigate("/payment-success", {
+              replace: true,
+              state: {
+                order: result.order,
+                message:
+                  result.message || "Payment successful!",
+              },
+            });
+          } catch (error) {
+            console.error("Payment verification failed:", error);
+
+            showMessage(
+              error.response?.data?.message ||
+                "Payment verification failed. If money was deducted, contact support."
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+      };
+
+      const checkout = new window.Razorpay(options);
+
+      checkout.on("payment.failed", (response) => {
+        showMessage(
+          response.error?.description ||
+            "Payment failed. Please try again."
+        );
+        setLoading(false);
+      });
+
+      checkout.open();
+    } catch (error) {
+      console.error("Razorpay payment error:", error);
+
+      showMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to start payment. Please try again."
+      );
+
+      setLoading(false);
+    }
+  };
+
+  if (!pendingOrder || orderItems.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f1eb] px-4 text-[#211f1b]">
+        <div className="w-full max-w-md rounded-3xl border border-[#e6dfd4] bg-white p-8 text-center shadow-sm">
+          <ShoppingBag
+            size={38}
+            className="mx-auto mb-4 text-[#9b815e]"
+          />
+
+          <h1 className="text-2xl font-semibold">
+            No pending order
+          </h1>
+
+          <p className="mt-3 text-sm leading-6 text-gray-500">
+            Please return to your cart and continue checkout.
+          </p>
+
+          <Link
+            to="/cart"
+            className="mt-7 inline-flex items-center justify-center rounded-xl bg-[#211f1b] px-6 py-3 text-sm font-semibold text-white"
+          >
+            Return to cart
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-10">
-      <form
-        onSubmit={handlePayment}
-        className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-xl md:p-8"
-      >
-        <h1 className="text-center text-3xl font-bold">
-          Card Payment
-        </h1>
-
-        <p className="mb-8 mt-2 text-center text-gray-500">
-          Complete your payment securely
-        </p>
-
-        <label className="mb-2 block font-semibold">
-          Card Number
-        </label>
-
-        <input
-          type="text"
-          value={cardNumber}
-          onChange={(e) =>
-            setCardNumber(e.target.value)
-          }
-          placeholder="Enter card number"
-          maxLength="16"
-          className="mb-5 w-full rounded-lg border p-4 outline-none focus:border-black"
-        />
-
-        <label className="mb-2 block font-semibold">
-          Card Holder Name
-        </label>
-
-        <input
-          type="text"
-          value={cardHolderName}
-          onChange={(e) =>
-            setCardHolderName(e.target.value)
-          }
-          placeholder="Enter card holder name"
-          className="mb-5 w-full rounded-lg border p-4 outline-none focus:border-black"
-        />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-2 block font-semibold">
-              Expiry Date
-            </label>
-
-            <input
-              type="text"
-              value={expiry}
-              onChange={(e) =>
-                setExpiry(e.target.value)
-              }
-              placeholder="MM/YY"
-              maxLength="5"
-              className="w-full rounded-lg border p-4 outline-none focus:border-black"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block font-semibold">
-              CVV
-            </label>
-
-            <input
-              type="password"
-              value={cvv}
-              onChange={(e) =>
-                setCvv(e.target.value)
-              }
-              placeholder="CVV"
-              maxLength="3"
-              className="w-full rounded-lg border p-4 outline-none focus:border-black"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-between rounded-lg bg-gray-100 p-5 font-bold">
-          <span>Total Amount</span>
-          <span>₹{totalAmount}</span>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full rounded-lg bg-black py-4 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+    <div className="min-h-screen bg-[#f4f1eb] px-4 py-10 text-[#211f1b]">
+      <div className="mx-auto max-w-5xl">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-2xl font-semibold"
         >
-          {loading
-            ? "Processing..."
-            : `Pay ₹${totalAmount}`}
-        </button>
-      </form>
+          TrendKart<span className="text-[#b99a6b]">.</span>
+        </Link>
+
+        <div className="mt-8 flex items-center gap-3 text-sm text-gray-500">
+          <Link
+            to="/cart"
+            className="inline-flex items-center gap-1 hover:text-black"
+          >
+            <ArrowLeft size={15} />
+            Back to cart
+          </Link>
+
+          <span>/</span>
+          <span className="text-[#211f1b]">Payment</span>
+        </div>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+          <section className="rounded-3xl border border-[#e6dfd4] bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4eee5] text-[#806344]">
+              <CreditCard size={23} />
+            </div>
+
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-[#9b815e]">
+              Secure checkout
+            </p>
+
+            <h1 className="mt-2 text-3xl font-semibold">
+              Choose your payment
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Select a payment method to complete your TrendKart order.
+            </p>
+
+            {message && (
+              <div
+                role="alert"
+                className={`mt-6 rounded-xl border px-4 py-3 text-sm ${
+                  messageType === "success"
+                    ? "border-green-200 bg-green-50 text-green-800"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {message}
+              </div>
+            )}
+
+            <div className="mt-8 space-y-3">
+              <button
+                type="button"
+                onClick={() => setSelectedMethod("cod")}
+                disabled={loading}
+                className={`flex w-full items-center gap-4 rounded-2xl border p-5 text-left transition ${
+                  selectedMethod === "cod"
+                    ? "border-[#806344] bg-[#f8f5f0]"
+                    : "border-[#e6dfd4] bg-white"
+                }`}
+              >
+                <Banknote size={24} className="text-[#806344]" />
+
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    Cash on Delivery
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Pay when your order arrives
+                  </p>
+                </div>
+
+                <span className="text-sm">
+                  {selectedMethod === "cod" ? "✓" : ""}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedMethod("razorpay")}
+                disabled={loading}
+                className={`flex w-full items-center gap-4 rounded-2xl border p-5 text-left transition ${
+                  selectedMethod === "razorpay"
+                    ? "border-[#806344] bg-[#f8f5f0]"
+                    : "border-[#e6dfd4] bg-white"
+                }`}
+              >
+                <CreditCard size={24} className="text-[#806344]" />
+
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    Online Payment
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Pay securely using Razorpay
+                  </p>
+                </div>
+
+                <span className="text-sm">
+                  {selectedMethod === "razorpay" ? "✓" : ""}
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-[#eee9e1] bg-[#fbfaf8] p-5">
+              <div className="flex items-start gap-3">
+                <ShieldCheck
+                  size={21}
+                  className="mt-0.5 shrink-0 text-[#806344]"
+                />
+
+                <div>
+                  <h2 className="text-sm font-semibold">
+                    Secure order processing
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-500">
+                    {selectedMethod === "cod"
+                      ? "Your order will be saved after the server validates your items, stock, and shipping address."
+                      : "Your payment will be verified by the server before your order is confirmed."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                selectedMethod === "cod"
+                  ? handleCOD
+                  : handleRazorpay
+              }
+              disabled={loading}
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#211f1b] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#38342d] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading
+                ? "Please wait..."
+                : selectedMethod === "cod"
+                  ? `Place Order · ${formatPrice(displayTotal)}`
+                  : `Pay ${formatPrice(displayTotal)}`}
+            </button>
+          </section>
+
+          <aside className="h-fit rounded-3xl border border-[#e6dfd4] bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-lg font-semibold">
+              Order summary
+            </h2>
+
+            <div className="mt-6 space-y-4">
+              {orderItems.map((item, index) => (
+                <div
+                  key={
+                    item.product ||
+                    item.productId ||
+                    item._id ||
+                    index
+                  }
+                  className="flex items-start justify-between gap-4"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {item.name || item.title || "Product"}
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      Quantity: {item.quantity}
+                    </p>
+                  </div>
+
+                  <p className="shrink-0 text-sm font-medium">
+                    {formatPrice(
+                      Number(item.price || 0) *
+                        Number(item.quantity || 1)
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-6 border-t border-[#eee9e1]" />
+
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>Estimated total</span>
+              <span className="font-semibold text-[#211f1b]">
+                {formatPrice(displayTotal)}
+              </span>
+            </div>
+
+            <p className="mt-4 text-xs leading-5 text-gray-400">
+              The backend recalculates the final total using current
+              product prices and shipping rules.
+            </p>
+
+            <div className="mt-6 flex items-center gap-2 rounded-xl bg-[#f8f5f0] p-3 text-xs text-[#806344]">
+              <CheckCircle2 size={17} />
+              <span>
+                {selectedMethod === "cod"
+                  ? "Pay when your order is delivered"
+                  : "Secure Razorpay checkout"}
+              </span>
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
