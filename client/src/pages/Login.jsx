@@ -14,9 +14,11 @@ function Login() {
   const [step, setStep] = useState("credentials");
   const [loading, setLoading] = useState(false);
 
-  // Step 1: Check login details and request OTP.
+  // Step 1: Validate login details and request OTP.
   const handleSendOtp = async (event) => {
     event.preventDefault();
+
+    if (loading) return;
 
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -30,49 +32,67 @@ function Login() {
       return;
     }
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
+    try {
       const { data } = await API.post(
         "/auth/login/send-otp",
         {
           email: normalizedEmail,
           password,
+        },
+        {
+          timeout: 25000,
         }
       );
 
       setEmail(normalizedEmail);
       setStep("otp");
+      setOtp("");
 
-      toast.success(data.message);
+      toast.success(
+        data.message || "Login verification code sent to your email."
+      );
     } catch (error) {
+      console.error(
+        "Login OTP error:",
+        error.response?.data?.message || error.message
+      );
+
       toast.error(
-        error.response?.data?.message ||
-          "Unable to send OTP. Please try again."
+        error.code === "ECONNABORTED"
+          ? "The request timed out. Please try again."
+          : error.response?.data?.message ||
+              "Unable to send OTP. Please try again."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2: Verify OTP and log in.
+  // Step 2: Verify OTP and complete login.
   const handleVerifyOtp = async (event) => {
     event.preventDefault();
+
+    if (loading) return;
 
     if (!/^\d{6}$/.test(otp)) {
       toast.error("Enter the 6-digit OTP.");
       return;
     }
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
+    try {
       const { data } = await API.post(
         "/auth/verify-otp",
         {
-          email,
+          email: email.trim().toLowerCase(),
           otp,
           purpose: "login",
+        },
+        {
+          timeout: 25000,
         }
       );
 
@@ -80,12 +100,18 @@ function Login() {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       toast.success("Welcome back!");
-
       navigate("/");
     } catch (error) {
+      console.error(
+        "OTP verification error:",
+        error.response?.data?.message || error.message
+      );
+
       toast.error(
-        error.response?.data?.message ||
-          "OTP verification failed."
+        error.code === "ECONNABORTED"
+          ? "Verification timed out. Please try again."
+          : error.response?.data?.message ||
+              "OTP verification failed."
       );
     } finally {
       setLoading(false);
@@ -94,27 +120,50 @@ function Login() {
 
   // Request another OTP.
   const resendOtp = async () => {
-    try {
-      setLoading(true);
+    if (loading) return;
 
+    setLoading(true);
+
+    try {
       const { data } = await API.post(
         "/auth/login/send-otp",
         {
-          email,
+          email: email.trim().toLowerCase(),
           password,
+        },
+        {
+          timeout: 25000,
         }
       );
 
       setOtp("");
-      toast.success(data.message);
+
+      toast.success(
+        data.message || "A new verification code has been sent."
+      );
     } catch (error) {
+      console.error(
+        "Resend OTP error:",
+        error.response?.data?.message || error.message
+      );
+
       toast.error(
-        error.response?.data?.message ||
-          "Could not resend OTP."
+        error.code === "ECONNABORTED"
+          ? "The request timed out. Please try again."
+          : error.response?.data?.message ||
+              "Could not resend OTP."
       );
     } finally {
       setLoading(false);
     }
+  };
+
+  // Return to the credentials form.
+  const handleBackToLogin = () => {
+    if (loading) return;
+
+    setStep("credentials");
+    setOtp("");
   };
 
   return (
@@ -204,7 +253,7 @@ function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#39352e] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? "Sending OTP..." : "Continue securely"}
                   </button>
@@ -233,11 +282,9 @@ function Login() {
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    setStep("credentials");
-                    setOtp("");
-                  }}
-                  className="mb-8 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black"
+                  onClick={handleBackToLogin}
+                  disabled={loading}
+                  className="mb-8 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black disabled:opacity-50"
                 >
                   <ArrowLeft size={16} />
                   Back to login
@@ -272,9 +319,7 @@ function Login() {
                       value={otp}
                       onChange={(event) =>
                         setOtp(
-                          event.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 6)
+                          event.target.value.replace(/\D/g, "").slice(0, 6)
                         )
                       }
                       placeholder="000000"
@@ -290,22 +335,23 @@ function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+                    className="w-full rounded-xl bg-[#211f1b] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#39352e] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? "Verifying..." : "Verify and sign in"}
                   </button>
                 </form>
 
-                <p className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
+                <p className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-400">
                   <Mail size={14} />
                   Didn't receive it?
+
                   <button
                     type="button"
                     onClick={resendOtp}
                     disabled={loading}
-                    className="font-semibold text-[#806344] hover:underline"
+                    className="font-semibold text-[#806344] hover:underline disabled:opacity-50"
                   >
-                    Resend code
+                    {loading ? "Please wait..." : "Resend code"}
                   </button>
                 </p>
               </>

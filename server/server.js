@@ -1,3 +1,4 @@
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -12,17 +13,19 @@ import orderRoutes from "./routes/orderRoutes.js";
 import bannerRoutes from "./routes/bannerRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
 
-
 connectDB();
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://trend-kart-ten.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://trend-kart-ten.vercel.app",
-    ],
+    origin: allowedOrigins,
     credentials: true,
   })
 );

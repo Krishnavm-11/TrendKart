@@ -31,7 +31,7 @@ function publicUser(user) {
   };
 }
 
-// Send the OTP through email.
+// Send OTP through email
 async function sendOtpEmail(email, otp, purpose) {
   const {
     SMTP_HOST,
@@ -41,38 +41,62 @@ async function sendOtpEmail(email, otp, purpose) {
     EMAIL_FROM,
   } = process.env;
 
+  // Check email configuration
   if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    throw new Error("Email service is not configured. Check your .env file.");
+    throw new Error(
+      "Email service is not configured. Check your Render environment variables."
+    );
   }
 
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT),
     secure: Number(SMTP_PORT) === 465,
+
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
+
+    // Prevent the request from hanging indefinitely
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
-  await transporter.sendMail({
-    from: EMAIL_FROM || SMTP_USER,
-    to: email,
-    subject:
-      purpose === "register"
-        ? "Verify your TrendKart account"
-        : "Your TrendKart login code",
-    text: `Your TrendKart OTP is ${otp}. It expires in 10 minutes. Do not share this code.`,
-    html: `
-      <div style="font-family: Arial; padding: 25px;">
-        <h2>TrendKart</h2>
-        <p>Your email verification code is:</p>
-        <h1 style="letter-spacing: 8px;">${otp}</h1>
-        <p>This code expires in 10 minutes.</p>
-        <p>Do not share this code with anyone.</p>
-      </div>
-    `,
-  });
+  try {
+    await transporter.sendMail({
+      from: EMAIL_FROM || SMTP_USER,
+      to: email,
+
+      subject:
+        purpose === "register"
+          ? "Verify your TrendKart account"
+          : "Your TrendKart login code",
+
+      text: `Your TrendKart OTP is ${otp}. It expires in 10 minutes. Do not share this code.`,
+
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 25px; color: #211f1b;">
+          <h2>TrendKart</h2>
+          <p>Your email verification code is:</p>
+
+          <h1 style="letter-spacing: 8px;">${otp}</h1>
+
+          <p>This code expires in 10 minutes.</p>
+          <p>Do not share this code with anyone.</p>
+        </div>
+      `,
+    });
+
+    console.log(`OTP email sent successfully for purpose: ${purpose}`);
+  } catch (error) {
+    // Do not log passwords, OTPs, or email contents
+    console.error("OTP email sending failed:", error.message);
+    throw error;
+  } finally {
+    transporter.close();
+  }
 }
 
 // Generate a new OTP, save its hash and send the email.
@@ -263,61 +287,67 @@ export const sendRegisterOtp = async (req, res) => {
   }
 };
 
-// STEP 1: CHECK LOGIN DETAILS AND SEND OTP
+// Check login credentials and send OTP
 export const sendLoginOtp = async (req, res) => {
   try {
     const email = cleanEmail(req.body.email);
     const password = String(req.body.password || "");
 
+    // Validate input
     if (!emailPattern.test(email) || !password) {
       return res.status(400).json({
         message: "Enter a valid email and password.",
       });
     }
 
-   // Find the user by email
-const user = await User.findOne({ email });
+    // Find the user
+    const user = await User.findOne({ email });
 
-if (!user) {
-  return res.status(404).json({
-    message: "No account found with this email address.",
-  });
-}
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email address.",
+      });
+    }
 
-// Check the password
-const isPasswordCorrect = await bcrypt.compare(
-  password,
-  user.password
-);
+    // Check password
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      user.password
+    );
 
-if (!isPasswordCorrect) {
-  return res.status(401).json({
-    message: "Incorrect password. Please try again.",
-  });
-}
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        message: "Incorrect password. Please try again.",
+      });
+    }
 
-    // Admins continue using the existing admin login page.
+    // Admins use the separate admin login page
     if (user.role === "admin") {
       return res.status(403).json({
         message: "Please use the Admin Login page for this account.",
       });
     }
 
+    // Generate and email OTP
     await createAndSendOtp({
       email,
       purpose: "login",
     });
 
-    return res.json({
+    return res.status(200).json({
       message: "Login verification code sent to your email.",
     });
   } catch (error) {
     console.error("Login OTP error:", error.message);
 
+    if (error.message.includes("Email service is not configured")) {
+      return res.status(500).json({
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({
-      message: error.message.includes("Email service is not configured")
-        ? error.message
-        : "We couldn't send the OTP. Please try again.",
+      message: "We couldn't send the OTP. Please check your email settings and try again.",
     });
   }
 };
