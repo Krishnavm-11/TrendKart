@@ -1,15 +1,15 @@
+
 import User from "../models/User.js";
 import AuthOtp from "../models/AuthOtp.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
 
-// Convert email to lowercase and remove extra spaces.
+// Normalize email addresses.
 function cleanEmail(email = "") {
-  return email.trim().toLowerCase();
+  return String(email).trim().toLowerCase();
 }
 
-// Check whether the email format is valid.
+// Validate email format.
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Create a JWT token after successful authentication.
@@ -21,7 +21,7 @@ function makeToken(user) {
   );
 }
 
-// Send only the required user details to the frontend.
+// Return safe user details to the frontend.
 function publicUser(user) {
   return {
     _id: user._id,
@@ -31,89 +31,70 @@ function publicUser(user) {
   };
 }
 
-// Send OTP through email
+// Send OTP through Google Apps Script.
 async function sendOtpEmail(email, otp, purpose) {
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    EMAIL_FROM,
-  } = process.env;
+  const { MAIL_API_URL, MAIL_API_SECRET } = process.env;
 
-  // Check email configuration
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
+  if (!MAIL_API_URL || !MAIL_API_SECRET) {
     throw new Error(
-      "Email service is not configured. Check your Render environment variables."
+      "Email service is not configured. Check MAIL_API_URL and MAIL_API_SECRET."
     );
   }
 
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
-
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-
-    // Prevent the request from hanging indefinitely
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-
   try {
-    await transporter.sendMail({
-      from: EMAIL_FROM || SMTP_USER,
-      to: email,
-
-      subject:
-        purpose === "register"
-          ? "Verify your TrendKart account"
-          : "Your TrendKart login code",
-
-      text: `Your TrendKart OTP is ${otp}. It expires in 10 minutes. Do not share this code.`,
-
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 25px; color: #211f1b;">
-          <h2>TrendKart</h2>
-          <p>Your email verification code is:</p>
-
-          <h1 style="letter-spacing: 8px;">${otp}</h1>
-
-          <p>This code expires in 10 minutes.</p>
-          <p>Do not share this code with anyone.</p>
-        </div>
-      `,
+    const response = await fetch(MAIL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        secret: MAIL_API_SECRET,
+        to: email,
+        otp: String(otp),
+        purpose,
+      }),
+      signal: AbortSignal.timeout(20000),
     });
+
+    const responseText = await response.text();
+
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      throw new Error(
+        "Invalid response from Google Apps Script. Check the Web App deployment."
+      );
+    }
+
+    if (!response.ok || result.success !== true) {
+      throw new Error(
+        result.message || `Email API failed with status ${response.status}`
+      );
+    }
 
     console.log(`OTP email sent successfully for purpose: ${purpose}`);
   } catch (error) {
-    // Do not log passwords, OTPs, or email contents
     console.error("OTP email sending failed:", error.message);
     throw error;
-  } finally {
-    transporter.close();
   }
 }
 
-// Generate a new OTP, save its hash and send the email.
+// Generate OTP, save its hash, and send the email.
 async function createAndSendOtp({
   email,
   purpose,
   name,
   passwordHash,
 }) {
+  // Generate a cryptographically secure six-digit OTP.
   const otp = String(
-    Math.floor(100000 + Math.random() * 900000)
+    cryptoRandomInt(100000, 1000000)
   );
 
-  // Hash the OTP before saving it.
   const otpHash = await bcrypt.hash(otp, 10);
 
-  // Remove the previous OTP for this action.
   await AuthOtp.deleteOne({ email, purpose });
 
   await AuthOtp.create({
@@ -128,14 +109,20 @@ async function createAndSendOtp({
   try {
     await sendOtpEmail(email, otp, purpose);
   } catch (error) {
-    // Remove the record if the email could not be sent.
     await AuthOtp.deleteOne({ email, purpose });
     throw error;
   }
 }
 
-// EXISTING REGISTRATION ENDPOINT
-// Kept for compatibility with existing project code.
+// Secure random integer helper.
+function cryptoRandomInt(min, max) {
+  // Node.js built-in crypto module.
+  return requireCryptoRandomInt(min, max);
+}
+
+import { randomInt as requireCryptoRandomInt } from "node:crypto";
+
+// Legacy direct registration endpoint.
 export const registerUser = async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
@@ -160,9 +147,7 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
+    if (await User.findOne({ email })) {
       return res.status(409).json({
         message: "An account with this email already exists. Please log in instead.",
       });
@@ -183,6 +168,8 @@ export const registerUser = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
+    console.error("Registration error:", error.message);
+
     if (error.code === 11000) {
       return res.status(409).json({
         message: "An account with this email already exists. Please log in instead.",
@@ -195,8 +182,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// EXISTING LOGIN ENDPOINT
-// Kept for compatibility with the existing admin login.
+// Legacy login endpoint, retained for existing admin-login compatibility.
 export const loginUser = async (req, res) => {
   try {
     const email = cleanEmail(req.body.email);
@@ -221,13 +207,15 @@ export const loginUser = async (req, res) => {
       user: publicUser(user),
     });
   } catch (error) {
+    console.error("Login error:", error.message);
+
     return res.status(500).json({
       message: "Login failed. Please try again.",
     });
   }
 };
 
-// STEP 1: VALIDATE REGISTRATION AND SEND OTP
+// Validate registration details and send OTP.
 export const sendRegisterOtp = async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
@@ -256,9 +244,7 @@ export const sendRegisterOtp = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
+    if (await User.findOne({ email })) {
       return res.status(409).json({
         message: "This email is already registered. Please go back and log in.",
       });
@@ -280,27 +266,23 @@ export const sendRegisterOtp = async (req, res) => {
     console.error("Registration OTP error:", error.message);
 
     return res.status(500).json({
-      message: error.message.includes("Email service is not configured")
-        ? error.message
-        : "We couldn't send the OTP. Please check your email settings.",
+      message: error.message || "We couldn't send the OTP. Please check your email settings.",
     });
   }
 };
 
-// Check login credentials and send OTP
+// Validate login credentials and send OTP.
 export const sendLoginOtp = async (req, res) => {
   try {
     const email = cleanEmail(req.body.email);
     const password = String(req.body.password || "");
 
-    // Validate input
     if (!emailPattern.test(email) || !password) {
       return res.status(400).json({
         message: "Enter a valid email and password.",
       });
     }
 
-    // Find the user
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -309,7 +291,6 @@ export const sendLoginOtp = async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordCorrect = await bcrypt.compare(
       password,
       user.password
@@ -321,14 +302,12 @@ export const sendLoginOtp = async (req, res) => {
       });
     }
 
-    // Admins use the separate admin login page
     if (user.role === "admin") {
       return res.status(403).json({
         message: "Please use the Admin Login page for this account.",
       });
     }
 
-    // Generate and email OTP
     await createAndSendOtp({
       email,
       purpose: "login",
@@ -340,19 +319,13 @@ export const sendLoginOtp = async (req, res) => {
   } catch (error) {
     console.error("Login OTP error:", error.message);
 
-    if (error.message.includes("Email service is not configured")) {
-      return res.status(500).json({
-        message: error.message,
-      });
-    }
-
     return res.status(500).json({
-      message: "We couldn't send the OTP. Please check your email settings and try again.",
+      message: error.message || "We couldn't send the OTP. Please check your email settings and try again.",
     });
   }
 };
 
-// STEP 2: VERIFY OTP AND COMPLETE LOGIN OR REGISTRATION
+// Verify OTP and complete registration or login.
 export const verifyAuthOtp = async (req, res) => {
   try {
     const email = cleanEmail(req.body.email);
@@ -403,7 +376,6 @@ export const verifyAuthOtp = async (req, res) => {
     let user;
 
     if (purpose === "register") {
-      // Check again before creating the account.
       if (await User.findOne({ email })) {
         await AuthOtp.deleteOne({ _id: record._id });
 
@@ -429,7 +401,6 @@ export const verifyAuthOtp = async (req, res) => {
       }
     }
 
-    // OTP is no longer needed after successful verification.
     await AuthOtp.deleteOne({ _id: record._id });
 
     return res.json({
@@ -441,13 +412,13 @@ export const verifyAuthOtp = async (req, res) => {
       user: publicUser(user),
     });
   } catch (error) {
+    console.error("OTP verification error:", error.message);
+
     if (error.code === 11000) {
       return res.status(409).json({
         message: "This email is already registered. Please log in.",
       });
     }
-
-    console.error("OTP verification error:", error.message);
 
     return res.status(500).json({
       message: "We couldn't verify the code. Please try again.",
@@ -455,7 +426,7 @@ export const verifyAuthOtp = async (req, res) => {
   }
 };
 
-// Get all registered users for the admin dashboard
+// Get all users for the admin dashboard.
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find()
