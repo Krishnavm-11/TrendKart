@@ -235,10 +235,8 @@ sizes, using Tailwind CSS for responsive styling.
 
 ### 1. Clone the repository
 
-Replace the placeholder with the actual GitHub repository URL:
-
 ``` bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/Krishnavm-11/TrendKart
 cd TrendKart
 ```
 
