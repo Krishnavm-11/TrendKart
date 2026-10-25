@@ -4,8 +4,6 @@ import { Link } from "react-router-dom";
 
 import {
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Truck,
   ShieldCheck,
   Headphones,
@@ -29,54 +27,8 @@ function Home() {
     (state) => state.products?.products ?? []
   );
 
-  const [banners, setBanners] = useState([]);
-  const [bannerIndex, setBannerIndex] = useState(0);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState("");
-
-  // Default banners are displayed when the backend has no saved banners.
-  const defaultBanners = [
-    {
-      title: "New Season,\nNew Perspective.",
-      subtitle:
-        "Discover thoughtfully selected styles for every moment.",
-      image:
-        "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=2000&q=85",
-      label: "THE NEW COLLECTION",
-      buttonText: "Explore Collection",
-      path: "/category/women",
-    },
-    {
-      title: "Redefine Your\nEveryday Style.",
-      subtitle:
-        "Modern essentials. Effortless confidence. Timeless appeal.",
-      image:
-        "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=2000&q=85",
-      label: "THE MENS EDIT",
-      buttonText: "Shop Men's Style",
-      path: "/category/men",
-    },
-    {
-      title: "Find Your\nSignature Look.",
-      subtitle:
-        "Standout pieces that make every outfit feel your own.",
-      image:
-        "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=2000&q=85",
-      label: "STYLE, REIMAGINED",
-      buttonText: "Discover More",
-      path: "/category/women",
-    },
-  ];
-
-  const displayBanners =
-    banners.length > 0 ? banners : defaultBanners;
-
-  const activeIndex =
-    displayBanners.length > 0
-      ? bannerIndex % displayBanners.length
-      : 0;
-
-  const activeBanner = displayBanners[activeIndex];
 
   // Category data with premium outline icons instead of images.
   const categories = [
@@ -112,7 +64,7 @@ function Home() {
     },
   ];
 
-  // Fetch products and saved homepage banners from the backend.
+  // Fetch products from the backend.
   useEffect(() => {
     let cancelled = false;
 
@@ -162,184 +114,63 @@ function Home() {
       }
     };
 
-    const fetchBanners = async () => {
-      try {
-        const response = await API.get("/banners");
-        const data = response.data;
-
-        let bannerList = [];
-
-        if (Array.isArray(data)) {
-          bannerList = data;
-        } else if (Array.isArray(data?.banners)) {
-          bannerList = data.banners;
-        }
-
-        bannerList = bannerList.filter(
-          (banner) => banner && banner.image
-        );
-
-        if (!cancelled) {
-          setBanners(bannerList);
-          setBannerIndex(0);
-        }
-      } catch (error) {
-        console.error(
-          "Banner fetch error:",
-          error.response?.data || error.message
-        );
-
-        if (!cancelled) {
-          setBanners([]);
-        }
-      }
-    };
-
     fetchProducts();
-    fetchBanners();
 
     return () => {
       cancelled = true;
     };
   }, [dispatch]);
 
-  // Automatically change the hero banner every 6 seconds.
-  useEffect(() => {
-    if (displayBanners.length < 2) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setBannerIndex(
-        (previousIndex) =>
-          (previousIndex + 1) % displayBanners.length
-      );
-    }, 6000);
-
-    return () => clearInterval(interval);
-  }, [displayBanners.length]);
-
-  const nextBanner = () => {
-    setBannerIndex(
-      (previousIndex) =>
-        (previousIndex + 1) % displayBanners.length
-    );
-  };
-
-  const prevBanner = () => {
-    setBannerIndex(
-      (previousIndex) =>
-        (previousIndex - 1 + displayBanners.length) %
-        displayBanners.length
-    );
-  };
-
   const productList = Array.isArray(products) ? products : [];
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#fffdf9] text-[#201d18]">
-      {/* HERO BANNER */}
-      <section className="relative isolate min-h-[510px] overflow-hidden bg-[#24211d] sm:min-h-[570px] lg:min-h-[650px]">
-        <div
-          key={activeBanner.image}
-          className="absolute inset-0 -z-20 bg-cover bg-center transition-opacity duration-700"
-          style={{
-            backgroundImage: `url("${activeBanner.image}")`,
-          }}
-        />
-
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
-
-        <div className="mx-auto flex min-h-[510px] max-w-[1500px] items-center px-6 py-16 sm:min-h-[570px] sm:px-10 lg:min-h-[650px] lg:px-20">
+      {/* STATIC HOMEPAGE INTRODUCTION - no banner management or carousel */}
+      <section className="relative overflow-hidden bg-[#24211d]">
+        <div className="mx-auto flex min-h-[420px] max-w-[1500px] items-center px-6 py-16 sm:min-h-[480px] sm:px-10 lg:min-h-[540px] lg:px-20">
           <div className="max-w-2xl text-white">
             <div className="mb-7 flex items-center gap-3">
               <span className="h-px w-9 bg-[#d8bd95]" />
               <p className="text-[10px] font-semibold tracking-[4px] text-[#e4c9a0] sm:text-xs">
-                {activeBanner.label || "THE TRENDKART EDIT"}
+                THE TRENDKART EDIT
               </p>
             </div>
 
-            <h1 className="whitespace-pre-line font-serif text-5xl font-medium leading-[1.08] tracking-[-1.5px] sm:text-6xl lg:text-7xl xl:text-[82px]">
-              {activeBanner.title}
+            <h1 className="font-serif text-5xl font-medium leading-[1.08] tracking-[-1.5px] sm:text-6xl lg:text-7xl xl:text-[82px]">
+              New Season,
+              <span className="block text-[#d9c5a5]">New Perspective.</span>
             </h1>
 
             <p className="mt-6 max-w-lg text-sm leading-7 text-white/80 sm:text-base sm:leading-8">
-              {activeBanner.subtitle}
+              Discover thoughtfully selected styles for every moment.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-5">
               <Link
-                to={activeBanner.path || "/category/women"}
+                to="/category/women"
                 className="group inline-flex min-h-12 items-center gap-4 bg-[#f5eee3] px-6 py-3 text-xs font-semibold tracking-[1.5px] text-[#201d18] transition hover:bg-[#d8bd95]"
               >
-                {activeBanner.buttonText || "SHOP NOW"}
+                EXPLORE COLLECTION
                 <ArrowRight
                   size={17}
                   className="transition-transform group-hover:translate-x-1"
                 />
               </Link>
 
-              <Link
-                to="/"
-                onClick={() => {
+              <button
+                type="button"
+                onClick={() =>
                   document
                     .getElementById("featured-products")
-                    ?.scrollIntoView({ behavior: "smooth" });
-                }}
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
                 className="text-xs font-medium tracking-wide text-white/90 underline decoration-white/40 underline-offset-8 transition hover:decoration-white"
               >
                 View featured products
-              </Link>
-            </div>
-
-            <div className="mt-12 flex items-center gap-3">
-              <span className="mr-2 text-xs tracking-widest text-white/70">
-                {String(activeIndex + 1).padStart(2, "0")}
-              </span>
-
-              {displayBanners.map((banner, index) => (
-                <button
-                  key={`${banner.title}-${index}`}
-                  type="button"
-                  aria-label={`Show banner ${index + 1}`}
-                  onClick={() => setBannerIndex(index)}
-                  className={`h-[3px] transition-all duration-300 ${
-                    index === activeIndex
-                      ? "w-12 bg-[#e1c29a]"
-                      : "w-6 bg-white/45 hover:bg-white/80"
-                  }`}
-                />
-              ))}
-
-              <span className="ml-2 text-xs tracking-widest text-white/70">
-                {String(displayBanners.length).padStart(2, "0")}
-              </span>
+              </button>
             </div>
           </div>
         </div>
-
-        {displayBanners.length > 1 && (
-          <div className="absolute bottom-8 right-6 hidden items-center gap-2 sm:flex lg:right-12">
-            <button
-              type="button"
-              aria-label="Previous banner"
-              onClick={prevBanner}
-              className="flex h-11 w-11 items-center justify-center border border-white/35 text-white transition hover:bg-white hover:text-[#201d18]"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            <button
-              type="button"
-              aria-label="Next banner"
-              onClick={nextBanner}
-              className="flex h-11 w-11 items-center justify-center border border-white/35 text-white transition hover:bg-white hover:text-[#201d18]"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        )}
       </section>
 
       {/* SERVICE BENEFITS */}
@@ -527,7 +358,7 @@ function Home() {
         </div>
       </section>
 
-      {/* FINAL SHOPPING BANNER */}
+      {/* FINAL SHOPPING CALL TO ACTION */}
       <section className="px-5 py-16 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
         <div className="mx-auto flex max-w-[1350px] flex-col items-start justify-between gap-7 border border-[#e5dbcd] bg-[#f4eee5] p-7 sm:p-10 md:flex-row md:items-center lg:p-14">
           <div>

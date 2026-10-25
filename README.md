@@ -1,104 +1,78 @@
-# 🛍️ TrendKart — MERN Stack E-Commerce Website
+# 🛍️ TrendKart --- MERN Stack E-Commerce Website
 
-TrendKart is a full-stack e-commerce web application built using the **MERN stack**. It provides a complete online shopping experience with user authentication, product browsing, cart management, checkout, payment options, order tracking, and an admin dashboard.
+TrendKart is a full-stack e-commerce web application built with the
+**MERN stack**. It provides an online shopping experience with user
+authentication, product discovery, cart management, checkout, payment
+options, order tracking, and an admin dashboard.
 
-The project was developed to practice and demonstrate real-world **frontend, backend, database, authentication, API integration, file upload, and deployment** concepts.
-
----
+This project demonstrates practical full-stack development concepts,
+including frontend development, backend APIs, database integration,
+authentication, image uploads, and deployment.
 
 ## 🚀 Live Demo
 
-**Frontend:** https://trend-kart-ten.vercel.app [TrendKart Live Demo]
+**Frontend:** https://trend-kart-ten.vercel.app
 
----
+------------------------------------------------------------------------
 
 ## ✨ Features
 
-### 👤 User Features
+### 👤 Customer Features
 
-* User registration and login
-* Browse products
-* Product search
-* Browse products by category
-* Product details
-* Add products to cart
-* Update cart quantity
-* Remove products from cart
-* Checkout
-* Shipping details
-* Cash on Delivery
-* Card payment option
-* Place orders
-* View order history
-* View order status
-* Responsive design
+-   Register and log in
+-   Browse products and view product details
+-   Search products and browse by category
+-   Add products to the cart
+-   Update quantities and remove cart items
+-   Enter shipping and delivery details
+-   Choose an available payment method
+-   Place orders
+-   View order history and order status
+-   Use a responsive shopping interface
 
 ### 🔐 Admin Features
 
-* Secure admin login
-* Admin dashboard
-* Add products
-* Edit products
-* Delete products
-* Manage product stock
-* Upload product images
-* Add promotional banners
-* Delete banners
-* View customer orders
-* View customer details
-* Update order status
+-   Secure admin login and protected dashboard
+-   Add, edit, and delete products
+-   Manage product stock
+-   Upload product images
+-   Add and delete promotional banners
+-   View customer orders and order details
+-   View customer information associated with orders
+-   Update order status
+-   Delete orders, if enabled in the current backend
 
 ### ⚙️ Backend Features
 
-* RESTful API architecture
-* JWT authentication
-* Protected routes
-* Admin authorization
-* Password hashing using bcrypt
-* MongoDB database
-* Mongoose models
-* Cloudinary image storage
-* Error handling
+-   REST API architecture
+-   JWT-based authentication
+-   Protected routes and admin authorization
+-   Password hashing with bcryptjs
+-   MongoDB database integration with Mongoose
+-   Cloudinary image storage
+-   API error handling
 
----
+## 🛠️ Technology Stack
 
-## 🛠️ Tech Stack
-
-### Frontend
-
-* React.js
-* Vite
-* Tailwind CSS
-* Redux Toolkit
-* React Router
-* Axios
-* Lucide React
-
-### Backend
-
-* Node.js
-* Express.js
-* MongoDB
-* Mongoose
-* JWT
-* bcryptjs
-
-### Services & Tools
-
-* Cloudinary
-* Git
-* GitHub
-* Postman
-* Vercel
-* Render
-
----
+  Area                      Technologies
+  ------------------------- -----------------------------------------------
+  Frontend                  React, Vite, JavaScript
+  Styling                   Tailwind CSS
+  State management          Redux Toolkit
+  Routing                   React Router
+  HTTP requests             Axios
+  Icons                     Lucide React
+  Backend                   Node.js, Express.js
+  Database                  MongoDB, MongoDB Atlas, Mongoose
+  Authentication            JWT, bcryptjs
+  Image uploads             Cloudinary, Multer, multer-storage-cloudinary
+  Development and testing   Git, GitHub, Postman
+  Deployment                Vercel, Render
 
 ## 📂 Project Structure
 
-```text
+``` text
 TrendKart/
-│
 ├── client/
 │   ├── src/
 │   │   ├── components/
@@ -107,9 +81,7 @@ TrendKart/
 │   │   ├── services/
 │   │   ├── App.jsx
 │   │   └── main.jsx
-│   │
 │   └── package.json
-│
 ├── server/
 │   ├── config/
 │   ├── controllers/
@@ -119,43 +91,31 @@ TrendKart/
 │   ├── uploads/
 │   ├── server.js
 │   └── package.json
-│
 └── README.md
 ```
 
----
-
 ## 🔑 Authentication
 
-TrendKart uses **JWT-based authentication** for secure user and admin access.
+TrendKart uses JWT-based authentication to support customer accounts and
+protected functionality.
 
-### User Authentication
+### Customer Authentication
 
-Users can:
-
-1. Create an account
-2. Login with email and password
-3. Receive a JWT authentication token
-4. Access protected features
-5. Place orders
-6. View their order history
+1.  Create an account.
+2.  Log in with email and password.
+3.  Receive an authentication token.
+4.  Access protected features.
+5.  Place orders and view order history.
 
 ### Admin Authentication
 
-Administrators have a separate login flow and can access the protected admin dashboard.
+Administrators use the admin login flow to access protected dashboard
+features, such as product, banner, and order management. Admin-only API
+routes should verify authorization on the server.
 
-Admin permissions include:
+## 🛒 Shopping Workflow
 
-* Product management
-* Banner management
-* Order management
-* Order status updates
-
----
-
-## 🛒 Shopping Flow
-
-```text
+``` text
 Register / Login
        ↓
 Browse Products
@@ -175,99 +135,56 @@ Place Order
 View Order History
 ```
 
----
-
-## 👨‍💼 Admin Flow
-
-```text
-Admin Login
-     ↓
-Admin Dashboard
-     ↓
-┌───────────────┐
-│   Products    │
-│   Banners     │
-│    Orders     │
-└───────────────┘
-```
-
----
-
 ## 📦 Order Management
 
-Customers can place orders with:
+Checkout details may include: - Full name - Phone number - Email -
+Delivery address - City and state - PIN code - Payment method
 
-* Full name
-* Phone number
-* Email
-* Delivery address
-* City
-* State
-* PIN code
-* Payment method
+The admin dashboard supports viewing customer orders and updating their
+status. The documented order statuses are:
 
-Administrators can:
+-   Pending
+-   Confirmed
+-   Shipped
+-   Delivered
+-   Cancelled
+-   Declined
 
-* View customer orders
-* View customer details
-* View order items
-* Update order status
-* Delete orders
-
-### Order Status
-
-The application supports different order statuses such as:
-
-* Pending
-* Confirmed
-* Shipped
-* Delivered
-* Cancelled
-* Declined
-
----
+Available status values depend on the backend implementation.
 
 ## 🗄️ Database
 
-TrendKart uses **MongoDB Atlas** as the database with **Mongoose** for data modeling.
+TrendKart uses **MongoDB Atlas** for hosted database storage and
+**Mongoose** for schema modeling.
 
-### Main Collections
+Main collections described for the application: - Users - Products -
+Orders - Banners
 
-* Users
-* Products
-* Orders
-* Banners
+Orders are associated with authenticated users so customers can view
+their own order history.
 
-Orders are associated with authenticated users, allowing customers to view their own order history.
+## 🖼️ Image Uploads
 
----
-
-## 🖼️ Image Upload
-
-Product and banner images are uploaded and stored using **Cloudinary**.
-
-The backend uses:
-
-* Multer
-* Cloudinary
-* Multer Storage Cloudinary
-
-This allows images to be stored remotely rather than relying on local server storage.
-
----
+Product and banner images use **Cloudinary** for remote storage. The
+backend uses Multer and `multer-storage-cloudinary` to process uploads,
+avoiding dependence on local server storage for hosted images.
 
 ## 🔌 API Endpoints
 
+The following endpoints are based on the routes documented for this
+project. Confirm the exact paths and HTTP methods in the current backend
+before relying on them.
+
 ### Authentication
 
-```text
+``` http
 POST /api/auth/register
 POST /api/auth/login
 ```
 
 ### Products
 
-```text
+``` http
 GET    /api/products
 GET    /api/products/:id
 POST   /api/products
@@ -277,7 +194,7 @@ DELETE /api/products/:id
 
 ### Orders
 
-```text
+``` http
 POST   /api/orders
 GET    /api/orders/my-orders
 GET    /api/orders
@@ -285,217 +202,165 @@ PUT    /api/orders/:id/status
 DELETE /api/orders/:id
 ```
 
-### Banners
+## 💳 Payment Options
 
-```text
-GET    /api/banners
-POST   /api/banners
-DELETE /api/banners/:id
-```
-
----
-
-## 💳 Payment
-
-The checkout system supports:
-
-* Cash on Delivery
-* Card Payment
-
-Card payments can be integrated using a payment gateway in test mode.
-
----
+The project description lists **Cash on Delivery** and a **card payment
+option**. The card option may be a UI/demo flow unless a payment gateway
+is configured and verified in the backend. Do not use real payment
+details in a demo checkout.
 
 ## 🔒 Security
 
-TrendKart implements several security practices:
+Security measures described for TrendKart include: - JWT
+authentication - Protected API routes - Admin authorization - Password
+hashing with bcryptjs - Token-based API authorization - Environment
+variables for sensitive configuration - Role-based access control
 
-* JWT authentication
-* Protected API routes
-* Admin authorization
-* Password hashing using bcrypt
-* Token-based API authorization
-* Environment variables for sensitive backend configuration
-* Role-based access control
-
----
+Never expose private keys or database credentials in frontend code or
+commit them to a public repository.
 
 ## 📱 Responsive Design
 
-The application is designed to work across different screen sizes:
+The interface is designed for desktop, laptop, tablet, and mobile screen
+sizes, using Tailwind CSS for responsive styling.
 
-* 💻 Desktop
-* 🖥️ Laptop
-* 📱 Mobile
-* 📲 Tablet
+## ⚙️ Installation and Setup
 
-Tailwind CSS is used to build the responsive user interface.
+### Prerequisites
 
----
+-   Node.js and npm
+-   A MongoDB Atlas account or local MongoDB instance
+-   A Cloudinary account for image uploads
+-   Git
 
-## ⚙️ Installation
+### 1. Clone the repository
 
-### 1. Clone the Repository
+Replace the placeholder with the actual GitHub repository URL:
 
-```bash
+``` bash
 git clone YOUR_GITHUB_REPOSITORY_URL
-```
-
-### 2. Navigate to the Project
-
-```bash
 cd TrendKart
 ```
 
-### 3. Install Backend Dependencies
+### 2. Install backend dependencies
 
-```bash
+``` bash
 cd server
 npm install
 ```
 
-### 4. Install Frontend Dependencies
+### 3. Install frontend dependencies
 
-```bash
-cd ../client
-npm install
-```
+Open another terminal in the project directory:
 
----
-
-## ▶️ Run the Project Locally
-
-### Start Backend
-
-Open a terminal:
-
-```bash
-cd server
-npm run dev
-```
-
-Backend will run on:
-
-```text
-http://localhost:5000
-```
-
-### Start Frontend
-
-Open another terminal:
-
-```bash
+``` bash
 cd client
+npm install
+```
+
+## ▶️ Run Locally
+
+### Start the backend
+
+From the `server` folder, run the script configured in
+`server/package.json`. If a `dev` script exists:
+
+``` bash
 npm run dev
 ```
 
-Frontend will run on:
+The backend is expected to use port `5000` in the example local setup.
 
-```text
+### Start the frontend
+
+From the `client` folder, run:
+
+``` bash
+npm run dev
+```
+
+Vite usually serves the frontend at:
+
+``` text
 http://localhost:5173
 ```
 
----
+Make sure the frontend API configuration points to the backend URL. The
+project uses `client/src/services/api.js` for API configuration
+according to the supplied project description.
 
 ## 🔐 Environment Variables
 
-Create a `.env` file inside the `server` folder.
+Create a `.env` file inside the `server` directory:
 
-```env
+``` env
 PORT=5000
-
 MONGO_URI=your_mongodb_connection_string
-
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=your_long_random_jwt_secret
 
 CLOUDINARY_CLOUD_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
-> ⚠️ Never commit your `.env` file or sensitive credentials to GitHub.
+Use the variable names expected by your backend code. If your deployment
+uses a different port or environment-variable name, update this example
+to match.
 
----
+> **Security note:** Never commit `.env` files, database credentials,
+> JWT secrets, or Cloudinary API secrets to GitHub. Configure production
+> secrets in Render's environment settings.
 
 ## 🧪 API Testing
 
-The backend APIs can be tested using **Postman**.
+Use **Postman** to test backend endpoints. For protected routes, include
+the token in the request header when required:
 
-For protected routes, send the JWT token using the Authorization header:
-
-```text
+``` http
 Authorization: Bearer YOUR_TOKEN
 ```
 
----
-
 ## 🚀 Deployment
 
-### Frontend
+-   **Frontend:** Vercel --- https://trend-kart-ten.vercel.app
+-   **Backend:** Render
+-   **Database:** MongoDB Atlas
+-   **Image storage:** Cloudinary
 
-The React frontend is deployed using **Vercel**.
+The frontend must be configured to call the deployed backend URL, and
+the backend must allow requests from the deployed frontend through its
+CORS configuration.
 
-**Live Demo:**
-https://trend-kart-ten.vercel.app
+## 📌 Possible Future Improvements
 
-### Backend
-
-The Node.js/Express backend is deployed using **Render**.
-
-The frontend communicates with the deployed backend through the API configuration in:
-
-```text
-client/src/services/api.js
-```
-
----
-
-## 📌 Future Improvements
-
-Possible future improvements include:
-
-* Wishlist functionality
-* Product reviews and ratings
-* Coupon system
-* Pagination
-* Advanced product filtering
-* Email order notifications
-* Improved payment integration
-* User profile management
-* Sales analytics
-* Product recommendations
-* Improved admin dashboard
-
----
+-   Wishlist functionality
+-   Product reviews and ratings
+-   Coupon and discount system
+-   Pagination
+-   Advanced product filtering and sorting
+-   Email order notifications
+-   Production-ready payment gateway integration
+-   User profile management
+-   Sales analytics
+-   Product recommendations
+-   Additional admin dashboard insights
 
 ## 🎯 Learning Outcomes
 
-This project helped demonstrate practical experience with:
-
-* MERN stack development
-* React component development
-* Redux state management
-* REST API development
-* MongoDB database integration
-* Mongoose
-* JWT authentication
-* Role-based authorization
-* Password hashing
-* Cloudinary file uploads
-* Payment integration
-* API testing with Postman
-* Git and GitHub
-* Vercel deployment
-* Render deployment
-* Responsive UI development
-
----
+This project covers practical concepts including: - MERN stack
+application development - React components and routing - Redux Toolkit
+state management - REST API development and integration - MongoDB and
+Mongoose - JWT authentication and role-based authorization - Password
+hashing - Cloudinary image uploads - Order and product management - API
+testing with Postman - Git and GitHub workflows - Deployment with Vercel
+and Render - Responsive UI development
 
 ## 👩‍💻 Author
 
-**Krishna**
+**Krishna**\
+*MERN Stack Developer*
 
-MERN Stack Developer
+------------------------------------------------------------------------
 
----
-
+TrendKart is a full-stack project built to practise and demonstrate
+practical web development skills using the MERN stack.
