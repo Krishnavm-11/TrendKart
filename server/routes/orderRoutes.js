@@ -1,4 +1,5 @@
 import express from "express";
+
 import {
   createCODOrder,
   createRazorpayOrder,
@@ -8,52 +9,32 @@ import {
   updateOrderStatus,
   deleteOrder,
   cancelMyOrder,
+  getMyAddresses,
+  addMyAddress,
+  deleteMyAddress,
 } from "../controllers/orderController.js";
+
 import { getAnalytics } from "../controllers/analyticsController.js";
 import { protect, admin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Customer: create Cash on Delivery order
+// Customer addresses
+router.get("/addresses", protect, getMyAddresses);
+router.post("/addresses", protect, addMyAddress);
+router.delete("/addresses/:id", protect, deleteMyAddress);
+
+// Customer orders
 router.post("/", protect, createCODOrder);
-
-// Customer: cancel their own order
 router.put("/:id/cancel", protect, cancelMyOrder);
-
-// Customer: Razorpay routes
-router.post(
-  "/razorpay/create-order",
-  protect,
-  createRazorpayOrder
-);
-
-router.post(
-  "/razorpay/verify-payment",
-  protect,
-  verifyRazorpayPayment
-);
-
-// Customer: order history
+router.post("/razorpay/create-order", protect, createRazorpayOrder);
+router.post("/razorpay/verify-payment", protect, verifyRazorpayPayment);
 router.get("/myorders", protect, getMyOrders);
 
-// Admin: order management
+// Admin orders
 router.get("/", protect, admin, getAllOrders);
-
-router.put(
-  "/:id/status",
-  protect,
-  admin,
-  updateOrderStatus
-);
-
-router.delete(
-  "/:id",
-  protect,
-  admin,
-  deleteOrder
-);
-
-// Admin: analytics
+router.put("/:id/status", protect, admin, updateOrderStatus);
+router.delete("/:id", protect, admin, deleteOrder);
 router.get("/analytics", protect, admin, getAnalytics);
 
 export default router;

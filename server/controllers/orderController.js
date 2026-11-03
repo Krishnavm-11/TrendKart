@@ -1,9 +1,9 @@
-
 import crypto from "crypto";
 import Razorpay from "razorpay";
 
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 
 // Create Razorpay instance
 const getRazorpayInstance = () => {
@@ -103,6 +103,159 @@ const calculateOrder = async (orderItems) => {
     shipping,
     totalAmount: Number((subtotal + shipping).toFixed(2)),
   };
+};
+
+// ==========================================
+// GET SAVED ADDRESSES FOR LOGGED-IN USER
+// GET /api/orders/addresses
+// ==========================================
+export const getMyAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select(
+      "addresses"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json(user.addresses || []);
+  } catch (error) {
+    console.error("Get addresses error:", error);
+
+    return res.status(500).json({
+      message: "Unable to fetch saved addresses.",
+    });
+  }
+};
+
+// ==========================================
+// ADD ADDRESS FOR LOGGED-IN USER
+// POST /api/orders/addresses
+// ==========================================
+export const addMyAddress = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      city,
+      state,
+      pincode,
+      address,
+    } = req.body;
+
+    const requiredFields = {
+      fullName,
+      email,
+      phone,
+      city,
+      state,
+      pincode,
+      address,
+    };
+
+    for (const [field, value] of Object.entries(requiredFields)) {
+      if (!String(value || "").trim()) {
+        return res.status(400).json({
+          message: `Please provide ${field}.`,
+        });
+      }
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({
+        message: "Please enter a valid email address.",
+      });
+    }
+
+    if (!/^\d{10}$/.test(phone.trim())) {
+      return res.status(400).json({
+        message: "Please enter a valid 10-digit phone number.",
+      });
+    }
+
+    if (!/^\d{6}$/.test(pincode.trim())) {
+      return res.status(400).json({
+        message: "Please enter a valid 6-digit PIN code.",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    user.addresses.push({
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      pincode: pincode.trim(),
+      address: address.trim(),
+    });
+
+    await user.save();
+
+    const savedAddress = user.addresses[
+      user.addresses.length - 1
+    ];
+
+    return res.status(201).json({
+      message: "Address saved successfully.",
+      address: savedAddress,
+    });
+  } catch (error) {
+    console.error("Add address error:", error);
+
+    return res.status(500).json({
+      message: error.message || "Unable to save address.",
+    });
+  }
+};
+
+// ==========================================
+// DELETE ADDRESS FOR LOGGED-IN USER
+// DELETE /api/orders/addresses/:id
+// ==========================================
+export const deleteMyAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    const address = user.addresses.id(req.params.id);
+
+    if (!address) {
+      return res.status(404).json({
+        message: "Address not found.",
+      });
+    }
+
+    address.deleteOne();
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Address removed successfully.",
+    });
+  } catch (error) {
+    console.error("Delete address error:", error);
+
+    return res.status(500).json({
+      message: "Unable to remove address.",
+    });
+  }
 };
 
 // ==========================================
@@ -267,7 +420,6 @@ export const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
-    // Prevent saving the same payment twice
     const existingOrder = await Order.findOne({
       razorpayOrderId: razorpay_order_id,
     });
@@ -369,8 +521,6 @@ export const getAllOrders = async (req, res) => {
 
     const formattedOrders = orders.map((order) => ({
       ...order,
-
-      // The customer account linked to the order
       customer: order.user
         ? {
             id: order.user._id,
@@ -382,8 +532,6 @@ export const getAllOrders = async (req, res) => {
             name: "Customer account unavailable",
             email: order.email || "",
           },
-
-      // The delivery recipient may be a different person
       shippingRecipient:
         order.shippingAddress?.fullName || "",
     }));

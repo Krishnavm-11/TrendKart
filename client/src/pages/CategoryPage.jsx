@@ -27,12 +27,11 @@ function CategoryPage() {
     fetchProducts();
   }, [dispatch]);
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.category?.toLowerCase() ===
-      categoryName?.toLowerCase()
-  );
+  const searchTerm = categoryName?.trim().toLowerCase() || "";
 
+  const filteredProducts = products.filter((product) =>
+    product.category?.toLowerCase().includes(searchTerm)
+  );
   return (
     <div className="min-h-screen bg-[#faf8f4]">
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:px-8">

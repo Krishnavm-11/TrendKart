@@ -56,6 +56,16 @@ const getDiscountedPrice = (item) => {
   );
 };
 
+const emptyAddress = {
+  fullName: "",
+  email: "",
+  phone: "",
+  city: "",
+  state: "",
+  pincode: "",
+  address: "",
+};
+
 function BuyNow() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -64,21 +74,14 @@ function BuyNow() {
     (state) => state.cart
   );
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    city: "",
-    state: "",
-    pincode: "",
-    address: "",
-  });
+  const [formData, setFormData] = useState(emptyAddress);
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(true);
 
   const [notification, setNotification] = useState({
     message: "",
@@ -92,33 +95,54 @@ function BuyNow() {
     setNotification({ message, type });
   };
 
-  // Load saved addresses when the page opens.
+  // Load only the logged-in user's addresses from MongoDB.
   useEffect(() => {
-    try {
-      const storedAddresses = localStorage.getItem(
-        "trendkartAddresses"
-      );
+    const fetchAddresses = async () => {
+      try {
+        setAddressLoading(true);
 
-      const addresses = storedAddresses
-        ? JSON.parse(storedAddresses)
-        : [];
+        const response = await API.get("/orders/addresses");
 
-      if (Array.isArray(addresses) && addresses.length > 0) {
+        const addresses = Array.isArray(response.data)
+          ? response.data
+          : [];
+
         setSavedAddresses(addresses);
-        setSelectedAddressId(addresses[0].id);
-        setFormData(addresses[0].details);
-        setShowAddressForm(false);
-      } else {
+
+        if (addresses.length > 0) {
+          const firstAddress = addresses[0];
+
+          setSelectedAddressId(firstAddress._id);
+          setFormData({
+            fullName: firstAddress.fullName || "",
+            email: firstAddress.email || "",
+            phone: firstAddress.phone || "",
+            city: firstAddress.city || "",
+            state: firstAddress.state || "",
+            pincode: firstAddress.pincode || "",
+            address: firstAddress.address || "",
+          });
+
+          setShowAddressForm(false);
+        } else {
+          setShowAddressForm(true);
+        }
+      } catch (error) {
+        console.error("Unable to load saved addresses:", error);
+
         setShowAddressForm(true);
+
+        showNotification(
+          error.response?.data?.message ||
+            "Unable to load saved addresses.",
+          "error"
+        );
+      } finally {
+        setAddressLoading(false);
       }
-    } catch (error) {
-      console.error("Unable to load saved addresses:", error);
-      setShowAddressForm(true);
-      showNotification(
-        "Unable to load saved addresses.",
-        "error"
-      );
-    }
+    };
+
+    fetchAddresses();
   }, []);
 
   // Update form fields.
@@ -131,8 +155,8 @@ function BuyNow() {
     }));
   };
 
-  // Save a new address.
-  const saveAddress = () => {
+  // Validate address form.
+  const validateAddressForm = () => {
     const {
       fullName,
       email,
@@ -156,7 +180,7 @@ function BuyNow() {
         "Please fill in all address fields.",
         "error"
       );
-      return;
+      return false;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -164,7 +188,7 @@ function BuyNow() {
         "Please enter a valid email address.",
         "error"
       );
-      return;
+      return false;
     }
 
     if (!/^\d{10}$/.test(phone.trim())) {
@@ -172,7 +196,7 @@ function BuyNow() {
         "Please enter a valid 10-digit phone number.",
         "error"
       );
-      return;
+      return false;
     }
 
     if (!/^\d{6}$/.test(pincode.trim())) {
@@ -180,38 +204,53 @@ function BuyNow() {
         "Please enter a valid 6-digit PIN code.",
         "error"
       );
-      return;
+      return false;
     }
 
-    const newAddress = {
-      id: `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
-      details: {
-        fullName: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        city: city.trim(),
-        state: state.trim(),
-        pincode: pincode.trim(),
-        address: address.trim(),
-      },
-    };
+    return true;
+  };
 
-    const updatedAddresses = [
-      ...savedAddresses,
-      newAddress,
-    ];
+  // Save a new address in the logged-in user's MongoDB document.
+  const saveAddress = async () => {
+    if (!validateAddressForm()) return;
 
     try {
-      localStorage.setItem(
-        "trendkartAddresses",
-        JSON.stringify(updatedAddresses)
+      setLoading(true);
+
+      const addressData = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        pincode: formData.pincode.trim(),
+        address: formData.address.trim(),
+      };
+
+      const response = await API.post(
+        "/orders/addresses",
+        addressData
       );
 
-      setSavedAddresses(updatedAddresses);
-      setSelectedAddressId(newAddress.id);
-      setFormData(newAddress.details);
+      const newAddress = response.data.address;
+
+      setSavedAddresses((previousAddresses) => [
+        ...previousAddresses,
+        newAddress,
+      ]);
+
+      setSelectedAddressId(newAddress._id);
+
+      setFormData({
+        fullName: newAddress.fullName,
+        email: newAddress.email,
+        phone: newAddress.phone,
+        city: newAddress.city,
+        state: newAddress.state,
+        pincode: newAddress.pincode,
+        address: newAddress.address,
+      });
+
       setShowAddressForm(false);
 
       showNotification(
@@ -220,34 +259,38 @@ function BuyNow() {
       );
     } catch (error) {
       console.error("Unable to save address:", error);
+
       showNotification(
-        "Unable to save address in this browser.",
+        error.response?.data?.message ||
+          "Unable to save address. Please try again.",
         "error"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   // Select a saved address.
   const selectAddress = (savedAddress) => {
-    setSelectedAddressId(savedAddress.id);
-    setFormData(savedAddress.details);
+    setSelectedAddressId(savedAddress._id);
+
+    setFormData({
+      fullName: savedAddress.fullName || "",
+      email: savedAddress.email || "",
+      phone: savedAddress.phone || "",
+      city: savedAddress.city || "",
+      state: savedAddress.state || "",
+      pincode: savedAddress.pincode || "",
+      address: savedAddress.address || "",
+    });
+
     setShowAddressForm(false);
   };
 
   // Open the new address form.
   const addNewAddress = () => {
     setSelectedAddressId("");
-
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      city: "",
-      state: "",
-      pincode: "",
-      address: "",
-    });
-
+    setFormData({ ...emptyAddress });
     setShowAddressForm(true);
   };
 
@@ -256,7 +299,7 @@ function BuyNow() {
     if (savedAddresses.length > 0) {
       const previousAddress =
         savedAddresses.find(
-          (item) => item.id === selectedAddressId
+          (item) => item._id === selectedAddressId
         ) || savedAddresses[0];
 
       selectAddress(previousAddress);
@@ -273,40 +316,29 @@ function BuyNow() {
     setAddressToRemove(id);
   };
 
-  // Remove the confirmed address.
-  const confirmRemoveAddress = () => {
+  // Remove the confirmed address from MongoDB.
+  const confirmRemoveAddress = async () => {
     if (!addressToRemove) return;
 
-    const updatedAddresses = savedAddresses.filter(
-      (item) => item.id !== addressToRemove
-    );
-
     try {
-      localStorage.setItem(
-        "trendkartAddresses",
-        JSON.stringify(updatedAddresses)
+      setLoading(true);
+
+      await API.delete(
+        `/orders/addresses/${addressToRemove}`
+      );
+
+      const updatedAddresses = savedAddresses.filter(
+        (item) => item._id !== addressToRemove
       );
 
       setSavedAddresses(updatedAddresses);
 
       if (selectedAddressId === addressToRemove) {
         if (updatedAddresses.length > 0) {
-          setSelectedAddressId(updatedAddresses[0].id);
-          setFormData(updatedAddresses[0].details);
-          setShowAddressForm(false);
+          selectAddress(updatedAddresses[0]);
         } else {
           setSelectedAddressId("");
-
-          setFormData({
-            fullName: "",
-            email: "",
-            phone: "",
-            city: "",
-            state: "",
-            pincode: "",
-            address: "",
-          });
-
+          setFormData({ ...emptyAddress });
           setShowAddressForm(true);
         }
       }
@@ -319,12 +351,14 @@ function BuyNow() {
       );
     } catch (error) {
       console.error("Unable to remove address:", error);
-      setAddressToRemove(null);
 
       showNotification(
-        "Unable to remove address.",
+        error.response?.data?.message ||
+          "Unable to remove address.",
         "error"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -370,6 +404,14 @@ function BuyNow() {
       return false;
     }
 
+    if (addressLoading) {
+      showNotification(
+        "Please wait while your addresses load.",
+        "error"
+      );
+      return false;
+    }
+
     if (showAddressForm) {
       showNotification(
         "Please save your address before continuing.",
@@ -378,7 +420,12 @@ function BuyNow() {
       return false;
     }
 
-    if (!selectedAddressId) {
+    if (
+      !selectedAddressId ||
+      !savedAddresses.some(
+        (item) => item._id === selectedAddressId
+      )
+    ) {
       showNotification(
         "Please select a delivery address.",
         "error"
@@ -452,7 +499,7 @@ function BuyNow() {
         image: item.image,
 
         // Informational only.
-        // The backend must calculate the actual price.
+        // The backend calculates the actual price.
         price: getDiscountedPrice(item),
 
         quantity: Number(item.quantity || 1),
@@ -669,17 +716,24 @@ function BuyNow() {
                 )}
               </div>
 
+              {/* Loading addresses */}
+              {addressLoading && (
+                <p className="mb-4 text-sm text-[#8a8074]">
+                  Loading your saved addresses...
+                </p>
+              )}
+
               {/* Saved addresses */}
-              {savedAddresses.length > 0 && (
+              {!addressLoading && savedAddresses.length > 0 && (
                 <div className="mb-6 space-y-3">
                   {savedAddresses.map((savedAddress) => {
-                    const details = savedAddress.details;
+                    const details = savedAddress;
                     const isSelected =
-                      selectedAddressId === savedAddress.id;
+                      selectedAddressId === savedAddress._id;
 
                     return (
                       <div
-                        key={savedAddress.id}
+                        key={savedAddress._id}
                         className={`rounded-xl border p-4 transition ${
                           isSelected
                             ? "border-[#8b7355] bg-[#faf7f2]"
@@ -735,7 +789,7 @@ function BuyNow() {
                           <button
                             type="button"
                             onClick={() =>
-                              removeAddress(savedAddress.id)
+                              removeAddress(savedAddress._id)
                             }
                             title="Remove address"
                             aria-label={`Remove address for ${details.fullName}`}
@@ -878,10 +932,11 @@ function BuyNow() {
                     <button
                       type="button"
                       onClick={saveAddress}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25221e] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#40382f]"
+                      disabled={loading}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25221e] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#40382f] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Check size={17} />
-                      Save address
+                      {loading ? "Saving..." : "Save address"}
                     </button>
 
                     {savedAddresses.length > 0 && (
@@ -1137,11 +1192,15 @@ function BuyNow() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={loading || cartItems.length === 0}
+                disabled={
+                  loading ||
+                  addressLoading ||
+                  cartItems.length === 0
+                }
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#25221e] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#40382f] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? (
-                  "Placing order..."
+                  "Please wait..."
                 ) : (
                   <>
                     {paymentMethod === "card"
@@ -1218,6 +1277,7 @@ function BuyNow() {
               <button
                 type="button"
                 onClick={() => setAddressToRemove(null)}
+                disabled={loading}
                 className="flex-1 rounded-lg border border-[#ded6ca] px-4 py-3 text-sm font-medium text-[#51483e] hover:bg-[#f8f6f2]"
               >
                 Cancel
@@ -1226,9 +1286,10 @@ function BuyNow() {
               <button
                 type="button"
                 onClick={confirmRemoveAddress}
-                className="flex-1 rounded-lg bg-[#25221e] px-4 py-3 text-sm font-medium text-white hover:bg-[#40382f]"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-[#25221e] px-4 py-3 text-sm font-medium text-white hover:bg-[#40382f] disabled:opacity-50"
               >
-                Remove address
+                {loading ? "Removing..." : "Remove address"}
               </button>
             </div>
           </div>
