@@ -10,7 +10,6 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
-import bannerRoutes from "./routes/bannerRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
 
 connectDB();
@@ -39,7 +38,6 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/banners", bannerRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 
