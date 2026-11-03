@@ -118,14 +118,18 @@ function AdminDashboard() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#f7f5f0] text-[#211f1b]">
+    <div className="min-h-screen overflow-x-hidden bg-[#f7f5f0] text-[#211f1b]">
+
+      {/* Fixed Sidebar */}
       <AdminSidebar
         activePage={activePage}
         setActivePage={setActivePage}
         onLogout={handleLogout}
       />
 
-      <main className="min-w-0 flex-1 p-5 sm:p-8 lg:p-12">
+      {/* Main Dashboard Content */}
+      <main className="ml-[280px] min-h-screen min-w-0 p-5 sm:p-8 lg:p-12">
+
         <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#927858]">
@@ -228,6 +232,7 @@ function AdminDashboard() {
         {activePage === "Orders" && <AdminOrders />}
         {activePage === "Offers & Discounts" && <AdminOffers />}
         {activePage === "Analytics" && <AdminAnalytics />}
+
       </main>
     </div>
   );
