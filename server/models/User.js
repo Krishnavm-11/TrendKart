@@ -66,8 +66,6 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
-
-    // Each user has their own saved delivery addresses.
     addresses: {
       type: [addressSchema],
       default: [],

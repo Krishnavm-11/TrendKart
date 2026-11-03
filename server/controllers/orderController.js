@@ -1,3 +1,4 @@
+
 import crypto from "crypto";
 import Razorpay from "razorpay";
 
@@ -5,7 +6,9 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
 
-// Create Razorpay instance
+// ==========================================
+// RAZORPAY INSTANCE
+// ==========================================
 const getRazorpayInstance = () => {
   if (
     !process.env.RAZORPAY_KEY_ID ||
@@ -20,7 +23,9 @@ const getRazorpayInstance = () => {
   });
 };
 
-// Validate shipping address
+// ==========================================
+// VALIDATE SHIPPING ADDRESS
+// ==========================================
 const validateShippingAddress = (address) => {
   if (!address || typeof address !== "object") {
     throw new Error("Please provide a shipping address.");
@@ -42,7 +47,9 @@ const validateShippingAddress = (address) => {
   }
 };
 
-// Calculate order using actual database prices
+// ==========================================
+// CALCULATE ORDER
+// ==========================================
 const calculateOrder = async (orderItems) => {
   if (!Array.isArray(orderItems) || orderItems.length === 0) {
     throw new Error("Your cart is empty.");
@@ -55,11 +62,7 @@ const calculateOrder = async (orderItems) => {
     const productId = item.product || item.productId || item._id;
     const quantity = Number(item.quantity);
 
-    if (
-      !productId ||
-      !Number.isInteger(quantity) ||
-      quantity < 1
-    ) {
+    if (!productId || !Number.isInteger(quantity) || quantity < 1) {
       throw new Error("Invalid product or quantity.");
     }
 
@@ -111,9 +114,7 @@ const calculateOrder = async (orderItems) => {
 // ==========================================
 export const getMyAddresses = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select(
-      "addresses"
-    );
+    const user = await User.findById(req.user._id).select("addresses");
 
     if (!user) {
       return res.status(404).json({
@@ -147,7 +148,7 @@ export const addMyAddress = async (req, res) => {
       address,
     } = req.body;
 
-    const requiredFields = {
+    const addressData = {
       fullName,
       email,
       phone,
@@ -157,7 +158,7 @@ export const addMyAddress = async (req, res) => {
       address,
     };
 
-    for (const [field, value] of Object.entries(requiredFields)) {
+    for (const [field, value] of Object.entries(addressData)) {
       if (!String(value || "").trim()) {
         return res.status(400).json({
           message: `Please provide ${field}.`,
@@ -167,19 +168,19 @@ export const addMyAddress = async (req, res) => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({
-        message: "Please enter a valid email address.",
+        message: "Please provide a valid email address.",
       });
     }
 
     if (!/^\d{10}$/.test(phone.trim())) {
       return res.status(400).json({
-        message: "Please enter a valid 10-digit phone number.",
+        message: "Please provide a valid 10-digit phone number.",
       });
     }
 
     if (!/^\d{6}$/.test(pincode.trim())) {
       return res.status(400).json({
-        message: "Please enter a valid 6-digit PIN code.",
+        message: "Please provide a valid 6-digit PIN code.",
       });
     }
 
@@ -238,7 +239,7 @@ export const deleteMyAddress = async (req, res) => {
 
     if (!address) {
       return res.status(404).json({
-        message: "Address not found.",
+        message: "Address not found in your account.",
       });
     }
 
@@ -377,9 +378,7 @@ export const verifyRazorpayPayment = async (req, res) => {
       razorpay_order_id
     );
 
-    if (
-      razorpayOrder.notes?.userId !== String(req.user._id)
-    ) {
+    if (razorpayOrder.notes?.userId !== String(req.user._id)) {
       return res.status(403).json({
         message: "This payment does not belong to your account.",
       });
@@ -395,10 +394,7 @@ export const verifyRazorpayPayment = async (req, res) => {
 
     if (
       expectedBuffer.length !== receivedBuffer.length ||
-      !crypto.timingSafeEqual(
-        expectedBuffer,
-        receivedBuffer
-      )
+      !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
     ) {
       return res.status(400).json({
         message: "Payment signature verification failed.",
@@ -407,9 +403,7 @@ export const verifyRazorpayPayment = async (req, res) => {
 
     validateShippingAddress(orderData.shippingAddress);
 
-    const calculated = await calculateOrder(
-      orderData.orderItems
-    );
+    const calculated = await calculateOrder(orderData.orderItems);
 
     if (
       Math.round(calculated.totalAmount * 100) !==
@@ -426,8 +420,7 @@ export const verifyRazorpayPayment = async (req, res) => {
 
     if (existingOrder) {
       if (
-        existingOrder.user.toString() !==
-        req.user._id.toString()
+        existingOrder.user.toString() !== req.user._id.toString()
       ) {
         return res.status(403).json({
           message: "This order belongs to another account.",
@@ -532,8 +525,7 @@ export const getAllOrders = async (req, res) => {
             name: "Customer account unavailable",
             email: order.email || "",
           },
-      shippingRecipient:
-        order.shippingAddress?.fullName || "",
+      shippingRecipient: order.shippingAddress?.fullName || "",
     }));
 
     return res.status(200).json(formattedOrders);
